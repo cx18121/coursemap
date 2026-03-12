@@ -171,6 +171,14 @@ Each task was committed atomically:
 - Migration SQL is ready to apply when DATABASE_URL is configured
 - Note: jest runs slowly in WSL (~60s/run) — consider running tests on Windows side for iterative development
 
+## Self-Check: PASSED
+
+All files confirmed present. All task commits confirmed in git log:
+- `6707506` test(01-01): TDD RED tests
+- `e64a72d` feat(01-01): GREEN implementations
+- `1a886b7` chore(01-01): Drizzle migration
+- `1a2f6e2` docs(01-01): SUMMARY + STATE + ROADMAP metadata
+
 ---
 *Phase: 01-auth-foundation*
 *Completed: 2026-03-12*

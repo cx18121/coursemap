@@ -5,6 +5,7 @@ import {
   timestamp,
   serial,
   uniqueIndex,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -43,6 +44,82 @@ export const oauthTokens = pgTable(
     userRoleIdx: uniqueIndex("oauth_tokens_user_role_idx").on(
       table.userId,
       table.role
+    ),
+  })
+);
+
+// Tracks which courses the user has enabled/disabled per session
+export const courseSelections = pgTable(
+  "course_selections",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseName: text("course_name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    colorId: text("color_id").notNull().default("9"), // Blueberry default
+    gcalCalendarId: text("gcal_calendar_id"), // set after first sync
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userCourseIdx: uniqueIndex("course_sel_user_course_idx").on(
+      t.userId,
+      t.courseName
+    ),
+  })
+);
+
+// Per-event overrides — only rows for events the user has explicitly toggled or renamed
+// No row = event is enabled (default-include pattern)
+export const eventOverrides = pgTable(
+  "event_overrides",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventUid: text("event_uid").notNull(), // Canvas UID
+    enabled: boolean("enabled").notNull().default(false), // false = excluded
+    customTitle: text("custom_title"), // user-renamed title (null = use AI-cleaned title)
+  },
+  (t) => ({
+    userEventIdx: uniqueIndex("event_override_user_event_idx").on(
+      t.userId,
+      t.eventUid
+    ),
+  })
+);
+
+// AI-cleaned titles cache — shared across all users; avoids re-calling AI on repeat syncs
+export const eventTitleCache = pgTable("event_title_cache", {
+  id: serial("id").primaryKey(),
+  originalTitle: text("original_title").notNull().unique(),
+  cleanedTitle: text("cleaned_title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow(),
+});
+
+// School calendar mirror selections — tracks which school Google calendars to mirror
+export const schoolCalendarSelections = pgTable(
+  "school_calendar_selections",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    schoolCalendarId: text("school_calendar_id").notNull(), // Google calendarId on school account
+    schoolCalendarName: text("school_calendar_name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    gcalMirrorCalendarId: text("gcal_mirror_calendar_id"), // sub-calendar on personal account
+  },
+  (t) => ({
+    userSchoolCalIdx: uniqueIndex("school_cal_sel_user_cal_idx").on(
+      t.userId,
+      t.schoolCalendarId
     ),
   })
 );

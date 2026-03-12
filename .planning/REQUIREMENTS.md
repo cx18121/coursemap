@@ -66,27 +66,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| CANVAS-01 | — | Pending |
-| CANVAS-02 | — | Pending |
-| CANVAS-03 | — | Pending |
-| CANVAS-04 | — | Pending |
-| CANVAS-05 | — | Pending |
-| MIRROR-01 | — | Pending |
-| MIRROR-02 | — | Pending |
-| SYNC-01 | — | Pending |
-| SYNC-02 | — | Pending |
-| SYNC-03 | — | Pending |
-| SYNC-04 | — | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| CANVAS-01 | Phase 2 | Pending |
+| CANVAS-02 | Phase 2 | Pending |
+| CANVAS-03 | Phase 2 | Pending |
+| CANVAS-04 | Phase 2 | Pending |
+| CANVAS-05 | Phase 2 | Pending |
+| MIRROR-01 | Phase 2 | Pending |
+| MIRROR-02 | Phase 2 | Pending |
+| SYNC-01 | Phase 2 | Pending |
+| SYNC-02 | Phase 3 | Pending |
+| SYNC-03 | Phase 3 | Pending |
+| SYNC-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation*

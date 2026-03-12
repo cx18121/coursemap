@@ -1,110 +1,185 @@
+/**
+ * gcalSync.ts
+ * Refactored sync engine with bulk dedup and per-course sub-calendar targeting.
+ *
+ * Key improvements over the old implementation:
+ * - Replaces per-event events.list dedup (N API calls) with single bulk fetch per sub-calendar (1 call)
+ * - Gets access token internally via getFreshAccessToken — no raw token in function signature
+ * - Creates one sub-calendar per Canvas course via gcalSubcalendars.ts helper
+ * - Sets color at sub-calendar level only (not on individual events)
+ * - Returns SyncSummary with accurate counts and error messages
+ */
+
 import { google, calendar_v3 } from 'googleapis';
 import { CanvasEvent } from './icalParser';
+import { getFreshAccessToken } from '@/lib/tokens';
+import { ensureSubCalendar } from './gcalSubcalendars';
 
-interface SyncOptions {
-  accessToken: string;
-  events: CanvasEvent[];
-  courseColorMap: Record<string, string>; // Maps course names to Google Calendar color IDs
-  calendarId?: string; // Defaults to 'primary'
+export interface SyncProgress {
+  courseName: string;
+  processed: number;
+  total: number;
 }
 
-interface SyncResult {
-  action: 'inserted' | 'updated' | 'failed';
-  event: calendar_v3.Schema$Event;
-  error?: any;
+export interface SyncSummary {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
 }
 
 /**
- * Syncs parsed Canvas events directly to the user's Google Calendar with smoothed concurrency.
- * 
- * @param options Access token, events to sync, and color preferences
- * @returns Array of inserted/updated event responses
+ * Determine if an incoming Canvas event differs from the existing Google Calendar event
+ * enough to require an update.
  */
-export async function syncToGoogleCalendar({
-  accessToken,
-  events,
-  courseColorMap,
-  calendarId = 'primary'
-}: SyncOptions) {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
+function hasChanged(
+  incoming: CanvasEvent,
+  existing: calendar_v3.Schema$Event
+): boolean {
+  if (incoming.summary !== existing.summary) return true;
+  if (incoming.description !== existing.description) return true;
 
-  const calendar = google.calendar({ version: 'v3', auth });
-  
-  // Lower concurrency + sliding window to avoid "burst" rate limit triggers
-  const CONCURRENCY = 3; 
-  const results: SyncResult[] = [];
+  const incomingStart = new Date(incoming.start).toISOString();
+  const existingStart = existing.start?.dateTime ?? existing.start?.date ?? '';
+  if (incomingStart !== existingStart) return true;
 
-  // Helper to sync a single event
-  const syncEvent = async (event: CanvasEvent): Promise<SyncResult> => {
-    const colorId = courseColorMap[event.courseName] || undefined;
+  const incomingEnd = new Date(incoming.end).toISOString();
+  const existingEnd = existing.end?.dateTime ?? existing.end?.date ?? '';
+  if (incomingEnd !== existingEnd) return true;
 
-    const gcalEvent: calendar_v3.Schema$Event = {
-      summary: event.summary,
-      description: event.description,
-      start: {
-        dateTime: new Date(event.start).toISOString(),
+  return false;
+}
+
+/**
+ * Build the Google Calendar event request body for a Canvas event.
+ * Does NOT set colorId — color is managed at the sub-calendar level.
+ */
+function buildGcalEvent(event: CanvasEvent): calendar_v3.Schema$Event {
+  return {
+    summary: event.summary,
+    description: event.description,
+    start: {
+      dateTime: new Date(event.start).toISOString(),
+    },
+    end: {
+      dateTime: new Date(event.end).toISOString(),
+    },
+    extendedProperties: {
+      private: {
+        canvasCanvasUid: event.uid,
+        canvasSourceCalendarId: 'canvas',
+        canvasCourseName: event.courseName,
       },
-      end: {
-        dateTime: new Date(event.end).toISOString(),
-      },
-      colorId,
-      extendedProperties: {
-        private: {
-          canvasCanvasUid: event.uid,
-          canvasCourseName: event.courseName
-        }
-      }
-    };
-
-    try {
-      // Check if event already exists
-      const existingEventsResponse = await calendar.events.list({
-        calendarId,
-        privateExtendedProperty: [`canvasCanvasUid=${event.uid}`],
-        maxResults: 1
-      });
-
-      if (existingEventsResponse.data.items && existingEventsResponse.data.items.length > 0) {
-        const existingEventId = existingEventsResponse.data.items[0].id!;
-        const updatedEvent = await calendar.events.update({
-          calendarId,
-          eventId: existingEventId,
-          requestBody: gcalEvent
-        });
-        return { action: 'updated', event: updatedEvent.data };
-      } else {
-        const newEvent = await calendar.events.insert({
-          calendarId,
-          requestBody: gcalEvent
-        });
-        return { action: 'inserted', event: newEvent.data };
-      }
-    } catch (error) {
-      console.error(`Failed to sync Canvas event: ${event.summary}`, error);
-      return { action: 'failed', event: gcalEvent, error };
-    }
+    },
   };
+}
 
-  // Sliding window queue implementation
-  const queue = [...events];
-  const running: Promise<void>[] = [];
-
-  const runQueue = async () => {
-    while (queue.length > 0) {
-      const event = queue.shift()!;
-      const result = await syncEvent(event);
-      results.push(result);
-    }
-  };
-
-  // Start the specified number of "workers"
-  for (let i = 0; i < Math.min(CONCURRENCY, events.length); i++) {
-    running.push(runQueue());
+/**
+ * Sync Canvas events to the user's personal Google Calendar.
+ *
+ * For each course:
+ *  1. Ensures a sub-calendar exists (creates once, caches calendarId in DB)
+ *  2. Bulk-fetches all existing events from that sub-calendar in one API call
+ *  3. Diffs locally: inserts new events, updates changed events, skips unchanged
+ *
+ * @param userId - The user's internal DB ID
+ * @param events - Array of Canvas events to sync
+ * @param courseColorMap - Map of course name to Google Calendar colorId (1-24)
+ * @param onProgress - Optional callback invoked after each event is processed
+ * @returns SyncSummary with counts of inserted/updated/skipped/failed events
+ */
+export async function syncCanvasEvents(
+  userId: number,
+  events: CanvasEvent[],
+  courseColorMap: Record<string, string>,
+  onProgress?: (progress: SyncProgress) => void
+): Promise<SyncSummary> {
+  const accessToken = await getFreshAccessToken(userId, 'personal');
+  if (!accessToken) {
+    throw new Error('No access token available for personal account. Please re-authenticate.');
   }
 
-  // Wait for all workers to finish
-  await Promise.all(running);
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+  const calendar = google.calendar({ version: 'v3', auth });
 
-  return results;
+  const summary: SyncSummary = {
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  // Group events by course name
+  const eventsByCourse = new Map<string, CanvasEvent[]>();
+  for (const event of events) {
+    const group = eventsByCourse.get(event.courseName) ?? [];
+    group.push(event);
+    eventsByCourse.set(event.courseName, group);
+  }
+
+  // Process each course
+  for (const [courseName, courseEvents] of eventsByCourse) {
+    const colorId = courseColorMap[courseName] ?? '9'; // default: Blueberry
+
+    // Step 1: Ensure sub-calendar exists (DB-cached)
+    const subCalId = await ensureSubCalendar(calendar, userId, courseName, colorId);
+
+    // Step 2: Bulk-fetch all existing Canvas events from this sub-calendar
+    const existingResponse = await calendar.events.list({
+      calendarId: subCalId,
+      privateExtendedProperty: ['canvasSourceCalendarId=canvas'],
+      maxResults: 2500,
+      singleEvents: true,
+    });
+
+    // Build UID -> existing event map for O(1) lookup
+    const existingByUid = new Map<string, calendar_v3.Schema$Event>();
+    for (const item of existingResponse.data.items ?? []) {
+      const uid = item.extendedProperties?.private?.canvasCanvasUid;
+      if (uid) {
+        existingByUid.set(uid, item);
+      }
+    }
+
+    // Step 3: Diff and sync each incoming event
+    for (let i = 0; i < courseEvents.length; i++) {
+      const event = courseEvents[i];
+      const gcalEvent = buildGcalEvent(event);
+
+      try {
+        const existing = existingByUid.get(event.uid);
+
+        if (!existing) {
+          // New event — insert
+          await calendar.events.insert({
+            calendarId: subCalId,
+            requestBody: gcalEvent,
+          });
+          summary.inserted++;
+        } else if (hasChanged(event, existing)) {
+          // Changed event — update
+          await calendar.events.update({
+            calendarId: subCalId,
+            eventId: existing.id!,
+            requestBody: gcalEvent,
+          });
+          summary.updated++;
+        } else {
+          // Unchanged — skip
+          summary.skipped++;
+        }
+      } catch (err: unknown) {
+        summary.failed++;
+        const message = err instanceof Error ? err.message : String(err);
+        summary.errors.push(`[${event.courseName}] ${event.summary}: ${message}`);
+      }
+
+      onProgress?.({ courseName, processed: i + 1, total: courseEvents.length });
+    }
+  }
+
+  return summary;
 }

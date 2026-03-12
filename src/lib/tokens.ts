@@ -1,4 +1,8 @@
 import crypto from "crypto";
+import { eq, and } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { oauthTokens } from "@/lib/db/schema";
+import { googleClient } from "@/lib/auth";
 
 // KEY is 32 bytes (256 bits) base64-encoded
 // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
@@ -35,4 +39,58 @@ export function decryptToken(stored: string): string {
   const decipher = crypto.createDecipheriv("aes-256-gcm", KEY, iv);
   decipher.setAuthTag(tag);
   return decipher.update(data) + decipher.final("utf8");
+}
+
+/**
+ * Get a fresh access token for the given user and role.
+ * - Returns the existing token if it expires more than 5 minutes in the future.
+ * - Refreshes via Google OAuth if the token is expired (or within 5 min of expiry).
+ * - Returns null if no token row exists, refresh token is missing, or refresh fails.
+ * Callers should show a ReconnectBanner when null is returned.
+ */
+export async function getFreshAccessToken(
+  userId: number,
+  role: "personal" | "school"
+): Promise<string | null> {
+  const row = await db.query.oauthTokens.findFirst({
+    where: and(eq(oauthTokens.userId, userId), eq(oauthTokens.role, role)),
+  });
+
+  if (!row) return null;
+
+  const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+
+  // Return cached token if it won't expire within 5 minutes
+  if (row.accessTokenExpiresAt > fiveMinutesFromNow) {
+    return decryptToken(row.encryptedAccessToken);
+  }
+
+  // Token is expired or expiring soon — attempt to refresh
+  if (!row.encryptedRefreshToken) {
+    // No refresh token stored — user must re-authenticate
+    return null;
+  }
+
+  try {
+    const refreshToken = decryptToken(row.encryptedRefreshToken);
+    const newTokens = await googleClient.refreshAccessToken(refreshToken);
+
+    const newEncryptedAccessToken = encryptToken(newTokens.accessToken());
+    const newExpiresAt = newTokens.accessTokenExpiresAt();
+
+    // Update the DB row with the new access token
+    await db
+      .update(oauthTokens)
+      .set({
+        encryptedAccessToken: newEncryptedAccessToken,
+        accessTokenExpiresAt: newExpiresAt,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.role, role)));
+
+    return newTokens.accessToken();
+  } catch {
+    // Refresh failed — caller shows ReconnectBanner
+    return null;
+  }
 }

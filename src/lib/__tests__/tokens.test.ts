@@ -1,5 +1,19 @@
 import crypto from "crypto";
 
+// Mock db and auth modules so tokens.ts can be imported without real DB/OAuth clients
+jest.mock("@/lib/db", () => ({
+  db: {
+    query: { oauthTokens: { findFirst: jest.fn() } },
+    update: jest.fn().mockReturnValue({ set: jest.fn().mockReturnValue({ where: jest.fn() }) }),
+  },
+}));
+jest.mock("@/lib/auth", () => ({
+  googleClient: { refreshAccessToken: jest.fn() },
+  googleSchoolClient: { createAuthorizationURL: jest.fn() },
+  generateState: jest.fn(),
+  generateCodeVerifier: jest.fn(),
+}));
+
 // Set up TOKEN_ENCRYPTION_KEY before importing the module
 beforeAll(() => {
   process.env.TOKEN_ENCRYPTION_KEY = crypto.randomBytes(32).toString("base64");

@@ -35,10 +35,13 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {isAuthenticated && (
-          <nav className="w-full bg-zinc-900/80 backdrop-blur-lg border-b border-white/10 px-6 py-3 flex items-center justify-between">
-            <span className="text-white font-semibold text-sm tracking-wide">
-              Canvas to GCal
-            </span>
+          <nav className="sticky top-0 z-50 w-full bg-[#0c0a09]/80 backdrop-blur-xl border-b border-[--color-border] px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[--color-accent]" />
+              <span className="text-[--color-text-primary] font-medium text-sm tracking-wide">
+                Canvas to GCal
+              </span>
+            </div>
             <AccountDropdown />
           </nav>
         )}

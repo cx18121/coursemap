@@ -11,32 +11,29 @@ export default function ReconnectBanner({ account, onDismiss }: ReconnectBannerP
   const message =
     account === 'personal'
       ? 'Your Google connection has expired.'
-      : 'Your school Google connection has expired. Canvas ICS sync still works.';
+      : 'Your school Google connection has expired.';
 
   const reconnectHref =
     account === 'personal' ? '/login/google' : '/link/school-google';
 
-  const reconnectLabel =
-    account === 'personal' ? 'Reconnect Google' : 'Reconnect School Account';
-
   return (
-    <div className="w-full px-4 py-3 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between gap-4">
-      <p className="text-amber-200 text-sm">{message}</p>
-      <div className="flex items-center gap-3 flex-shrink-0">
+    <div className="w-full px-6 py-2.5 bg-amber-500/[0.06] border-b border-amber-500/10 flex items-center justify-between gap-4">
+      <p className="text-amber-300/80 text-xs">{message}</p>
+      <div className="flex items-center gap-2 flex-shrink-0">
         <a
           href={reconnectHref}
-          className="text-sm px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg transition-colors font-medium border border-amber-500/30"
+          className="text-xs px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-md transition-colors font-medium border border-amber-500/20"
         >
-          {reconnectLabel}
+          Reconnect
         </a>
         {onDismiss && (
           <button
             onClick={onDismiss}
             aria-label="Dismiss"
-            className="text-amber-200/60 hover:text-amber-200 transition-colors"
+            className="text-amber-300/40 hover:text-amber-300/70 transition-colors"
           >
             <svg
-              className="w-4 h-4"
+              className="w-3.5 h-3.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

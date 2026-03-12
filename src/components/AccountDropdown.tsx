@@ -32,7 +32,6 @@ export default function AccountDropdown() {
       .catch(() => null);
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -48,26 +47,23 @@ export default function AccountDropdown() {
     window.location.href = '/';
   };
 
-  if (!meData) {
-    return null;
-  }
+  if (!meData) return null;
 
   const { user, accounts } = meData;
   const schoolConnected = accounts.some((a) => a.role === 'school');
   const displayName = user.name || user.email;
-  // Truncate to reasonable length
   const truncatedName =
-    displayName.length > 20 ? displayName.slice(0, 18) + '…' : displayName;
+    displayName.length > 20 ? displayName.slice(0, 18) + '\u2026' : displayName;
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors text-sm font-medium border border-white/10"
+        className="flex items-center gap-2 px-3 py-1.5 text-[--color-text-secondary] hover:text-[--color-text-primary] rounded-lg transition-colors text-sm border border-transparent hover:border-[--color-border-hover] hover:bg-white/[0.03]"
       >
         <span>{truncatedName}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -78,23 +74,20 @@ export default function AccountDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-64 bg-zinc-900/90 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl py-2 z-50">
-          {/* Connected accounts */}
+        <div className="absolute right-0 mt-2 w-60 bg-[--color-surface-raised] border border-[--color-border-hover] rounded-lg shadow-xl shadow-black/40 py-1 z-[60]">
           {accounts.map((account) => (
             <div
               key={account.role}
-              className="px-4 py-2 flex items-center justify-between"
+              className="px-3 py-2 flex items-center justify-between"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-white/80 text-sm truncate">
-                  {account.email ?? 'Unknown email'}
-                </p>
-              </div>
+              <p className="text-[--color-text-secondary] text-xs truncate min-w-0 flex-1">
+                {account.email ?? 'Unknown email'}
+              </p>
               <span
-                className={`ml-2 flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                className={`ml-2 flex-shrink-0 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded ${
                   account.role === 'personal'
-                    ? 'bg-indigo-500/20 text-indigo-300'
-                    : 'bg-emerald-500/20 text-emerald-300'
+                    ? 'bg-[--color-accent-dim] text-[--color-accent]'
+                    : 'bg-emerald-500/10 text-emerald-400'
                 }`}
               >
                 {account.role === 'personal' ? 'Personal' : 'School'}
@@ -102,24 +95,24 @@ export default function AccountDropdown() {
             </div>
           ))}
 
-          {/* Link school account option */}
           {!schoolConnected && (
-            <a
-              href="/link/school-google"
-              className="block px-4 py-2 text-white/60 hover:text-white hover:bg-white/5 text-sm transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              + Link school account
-            </a>
+            <>
+              <div className="my-1 border-t border-[--color-border]" />
+              <a
+                href="/link/school-google"
+                className="block px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-white/[0.03] text-xs transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                + Link school account
+              </a>
+            </>
           )}
 
-          {/* Divider */}
-          <div className="my-2 border-t border-white/10" />
+          <div className="my-1 border-t border-[--color-border]" />
 
-          {/* Sign out */}
           <button
             onClick={handleSignOut}
-            className="w-full text-left px-4 py-2 text-white/60 hover:text-white hover:bg-white/5 text-sm transition-colors"
+            className="w-full text-left px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-white/[0.03] text-xs transition-colors"
           >
             Sign out
           </button>

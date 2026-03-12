@@ -19,28 +19,36 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-8 bg-zinc-950 overflow-hidden font-sans">
-      {/* Dynamic Background Elements */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-emerald-500/20 rounded-full mix-blend-screen filter blur-[128px] pointer-events-none" />
+    <div className="min-h-screen p-6">
+      {/* Background glow */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-amber-500/[0.03] rounded-full blur-[120px]" />
+      </div>
 
-      <main className="z-10 w-full max-w-2xl">
-        <div className="bg-white/10 p-8 rounded-2xl backdrop-blur-lg border border-white/20 shadow-xl space-y-4">
-          <h1 className="text-3xl font-bold text-white">
-            Welcome, {user.name}!
+      <div className="max-w-2xl mx-auto pt-12 space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-[--color-text-primary] tracking-tight">
+            Welcome, {user.name}
           </h1>
-          <p className="text-white/60">
-            Your accounts are connected. Sync features coming in Phase 2.
+          <p className="text-sm text-[--color-text-secondary]">
+            Your accounts are connected. Sync features coming soon.
           </p>
-          {user.canvasIcsUrl && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-              <p className="text-emerald-200 text-sm">
-                Canvas feed connected and ready to sync.
+        </div>
+
+        {user.canvasIcsUrl && (
+          <div className="bg-[--color-surface] border border-[--color-border] rounded-xl p-4 flex items-start gap-3">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-[--color-text-primary] font-medium">
+                Canvas feed connected
+              </p>
+              <p className="text-xs text-[--color-text-tertiary] mt-0.5">
+                Ready to sync assignments to your calendar.
               </p>
             </div>
-          )}
-        </div>
-      </main>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

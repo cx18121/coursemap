@@ -34,7 +34,6 @@ export default async function Home({
       const personalConnected = tokenRows.some((r) => r.role === "personal");
       const setupComplete = personalConnected && user.canvasIcsUrl !== null;
 
-      // Returning user with completed setup — go straight to dashboard
       if (setupComplete) {
         redirect("/dashboard");
       }
@@ -50,10 +49,7 @@ export default async function Home({
         connected: true,
       }));
 
-      // Determine which step to show
       if (personalConnected) {
-        // Personal connected but canvasIcsUrl not set
-        // Check if school is connected (then skip to step 3, otherwise step 2)
         const schoolConnected = tokenRows.some((r) => r.role === "school");
         currentStep = schoolConnected ? 3 : 2;
       } else {
@@ -63,19 +59,26 @@ export default async function Home({
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-8 bg-zinc-950 overflow-hidden font-sans">
-      {/* Dynamic Background Elements */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-emerald-500/20 rounded-full mix-blend-screen filter blur-[128px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center p-6">
+      {/* Subtle background glow */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-amber-500/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-orange-500/[0.03] rounded-full blur-[120px]" />
+      </div>
 
-      {/* Content Container */}
-      <main className="z-10 w-full max-w-2xl flex flex-col items-center gap-8">
+      <main className="w-full max-w-md flex flex-col items-center gap-10">
         <div className="text-center space-y-3">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-teal-300 tracking-tight">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-[--color-accent]" />
+            <span className="text-[--color-text-tertiary] text-xs uppercase tracking-[0.2em] font-medium">
+              Setup
+            </span>
+          </div>
+          <h1 className="text-3xl font-semibold text-[--color-text-primary] tracking-tight">
             Canvas to GCal
           </h1>
-          <p className="text-base text-white/50 max-w-xl mx-auto font-light">
-            Sync your Canvas assignments and school calendar to Google Calendar.
+          <p className="text-sm text-[--color-text-secondary] max-w-sm mx-auto leading-relaxed">
+            Connect your accounts to sync Canvas assignments to Google Calendar.
           </p>
         </div>
 

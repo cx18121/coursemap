@@ -27,7 +27,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. After signing in, user can link a second school Google account from the same session
   3. Both account connections persist after closing and reopening the browser
   4. Accessing the app with an expired token does not break the session — tokens refresh silently in the background
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — DB schema, token encryption, session management, Drizzle migrations
+- [ ] 01-02-PLAN.md — OAuth route handlers (personal login, school link, signout), token refresh, middleware
+- [ ] 01-03-PLAN.md — Setup wizard UI, account dropdown, reconnect banner, auth-aware routing
 
 ### Phase 2: Sync Pipeline
 **Goal**: Users can select which Canvas courses and school calendars to sync, trigger a sync, and see events appear in their personal Google Calendar
@@ -59,6 +63,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auth Foundation | 0/? | Not started | - |
+| 1. Auth Foundation | 0/3 | Not started | - |
 | 2. Sync Pipeline | 0/? | Not started | - |
 | 3. Reliability and Deploy | 0/? | Not started | - |

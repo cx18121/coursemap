@@ -12,7 +12,7 @@ Starting from a stateless prototype with manual token pasting, this roadmap evol
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Auth Foundation** - Persistent dual-account Google OAuth with encrypted token storage
+- [x] **Phase 1: Auth Foundation** - Persistent dual-account Google OAuth with encrypted token storage (completed 2026-03-12)
 - [ ] **Phase 2: Sync Pipeline** - Canvas event push and school calendar mirror via a working manual sync
 - [ ] **Phase 3: Reliability and Deploy** - Sync status, error feedback, and production deployment
 
@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. After signing in, user can link a second school Google account from the same session
   3. Both account connections persist after closing and reopening the browser
   4. Accessing the app with an expired token does not break the session — tokens refresh silently in the background
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 01-01-PLAN.md — DB schema, token encryption, session management, Drizzle migrations
 - [ ] 01-02-PLAN.md — OAuth route handlers (personal login, school link, signout), token refresh, middleware
@@ -63,6 +63,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auth Foundation | 2/3 | In Progress|  |
+| 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
 | 2. Sync Pipeline | 0/? | Not started | - |
 | 3. Reliability and Deploy | 0/? | Not started | - |

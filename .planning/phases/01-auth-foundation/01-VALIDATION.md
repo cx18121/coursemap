@@ -42,8 +42,8 @@ created: 2026-03-12
 | 1-01-02 | 01 | 1 | AUTH-01 | unit | `npx jest src/lib/__tests__/tokens.test.ts -x` | ❌ W0 | ⬜ pending |
 | 1-02-01 | 02 | 1 | AUTH-02 | unit/integration | `npx jest src/app/link/__tests__/school-callback.test.ts -x` | ❌ W0 | ⬜ pending |
 | 1-03-01 | 03 | 1 | AUTH-03 | unit | `npx jest src/lib/db/__tests__/schema.test.ts -x` | ❌ W0 | ⬜ pending |
-| 1-04-01 | 04 | 1 | AUTH-04 | unit (mock arctic) | `npx jest src/lib/__tests__/tokens.test.ts -x` | ❌ W0 | ⬜ pending |
-| 1-04-02 | 04 | 1 | AUTH-04 | unit | `npx jest src/lib/__tests__/tokens.test.ts -x` | ❌ W0 | ⬜ pending |
+| 1-02-02 | 02 | 2 | AUTH-04 | unit (mock arctic) | `npx jest src/lib/__tests__/tokens.test.ts -x` | ❌ W0 | ⬜ pending |
+| 1-02-03 | 02 | 2 | AUTH-04 | unit | `npx jest src/lib/__tests__/tokens.test.ts -x` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

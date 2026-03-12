@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-auth-foundation 01-01-PLAN.md
-last_updated: "2026-03-12T16:48:19.788Z"
+stopped_at: Completed 01-auth-foundation 01-02-PLAN.md
+last_updated: "2026-03-12T17:59:57.645Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-auth-foundation P01 | 29 | 2 tasks | 13 files |
+| Phase 01-auth-foundation P02 | 22 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 01-auth-foundation]: ts-jest over next/jest: SWC Rust binaries hang in WSL on Windows NTFS; ts-jest provides compatible TypeScript compilation for lib unit tests
 - [Phase 01-auth-foundation]: next/headers mock at src/lib/__mocks__/next-headers.ts: allows session.ts to be imported in unit tests without Next.js runtime
 - [Phase 01-auth-foundation]: jose transformIgnorePatterns exception: jose v5 is ESM-only, requires ts-jest to transform it for CommonJS test environment
+- [Phase 01-auth-foundation]: Two Arctic Google client instances required: personal (/login/google/callback) and school (/link/school-google/callback) use different redirect_uri, which is bound at construction time
+- [Phase 01-auth-foundation]: getFreshAccessToken uses 5-minute expiry buffer before refresh to avoid using near-expired tokens mid-request
+- [Phase 01-auth-foundation]: Middleware excludes /api from matcher — CVE-2025-29927 guidance: API routes verify session server-side, middleware is optimistic only
 
 ### Pending Todos
 
@@ -76,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T16:48:19.731Z
-Stopped at: Completed 01-auth-foundation 01-01-PLAN.md
+Last session: 2026-03-12T17:59:57.590Z
+Stopped at: Completed 01-auth-foundation 01-02-PLAN.md
 Resume file: None

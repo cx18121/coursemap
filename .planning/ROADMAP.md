@@ -12,7 +12,7 @@ Starting from a stateless prototype with manual token pasting, this roadmap evol
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Auth Foundation** - Persistent dual-account Google OAuth with encrypted token storage (completed 2026-03-12)
+- [x] **Phase 1: Auth Foundation** - Persistent dual-account Google OAuth with encrypted token storage (completed 2026-03-12)
 - [ ] **Phase 2: Sync Pipeline** - Canvas event push and school calendar mirror via a working manual sync
 - [ ] **Phase 3: Reliability and Deploy** - Sync status, error feedback, and production deployment
 
@@ -29,9 +29,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Accessing the app with an expired token does not break the session — tokens refresh silently in the background
 **Plans:** 3/3 plans complete
 Plans:
-- [ ] 01-01-PLAN.md — DB schema, token encryption, session management, Drizzle migrations
-- [ ] 01-02-PLAN.md — OAuth route handlers (personal login, school link, signout), token refresh, middleware
-- [ ] 01-03-PLAN.md — Setup wizard UI, account dropdown, reconnect banner, auth-aware routing
+- [x] 01-01-PLAN.md — DB schema, token encryption, session management, Drizzle migrations
+- [x] 01-02-PLAN.md — OAuth route handlers (personal login, school link, signout), token refresh, middleware
+- [x] 01-03-PLAN.md — Setup wizard UI, account dropdown, reconnect banner, auth-aware routing
 
 ### Phase 2: Sync Pipeline
 **Goal**: Users can select which Canvas courses and school calendars to sync, trigger a sync, and see events appear in their personal Google Calendar
@@ -43,7 +43,12 @@ Plans:
   3. User can select individual events within a course to include or exclude
   4. User can choose which school Google calendars to mirror (not forced to mirror all)
   5. Clicking "Sync Now" pushes selected Canvas events and mirrored school events to the personal Google Calendar, with each course visually distinct by color
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 02-01-PLAN.md — DB schema extension (4 tables) + syncFilter, colorAssignment, titleCleanup services
+- [ ] 02-02-PLAN.md — gcalSync refactor (bulk dedup, sub-calendars) + school mirror service
+- [ ] 02-03-PLAN.md — API routes (parse-ics refactor, user-selections, school-calendars, unified sync)
+- [ ] 02-04-PLAN.md — Dashboard UI (course accordion, school calendar list, sync button, summary)
 
 ### Phase 3: Reliability and Deploy
 **Goal**: Users get clear feedback on sync results and errors, and the app is accessible from any device via a public URL
@@ -64,5 +69,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
-| 2. Sync Pipeline | 0/? | Not started | - |
+| 2. Sync Pipeline | 0/4 | Planning complete | - |
 | 3. Reliability and Deploy | 0/? | Not started | - |

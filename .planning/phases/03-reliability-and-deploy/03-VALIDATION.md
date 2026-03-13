@@ -38,13 +38,13 @@ created: 2026-03-12
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 3-01-01 | 01 | 1 | SYNC-02 | unit | `npx jest --testPathPattern="SyncDashboard" --no-coverage` | ❌ W0 | ⬜ pending |
-| 3-01-02 | 01 | 1 | SYNC-03 | unit | `npx jest --testPathPattern="SyncSummary" --no-coverage` | ❌ W0 | ⬜ pending |
-| 3-01-03 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="sync/route" --no-coverage` | ❌ W0 | ⬜ pending |
-| 3-01-04 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="sync/route" --no-coverage` | ❌ W0 | ⬜ pending |
-| 3-01-05 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="sync/route" --no-coverage` | ❌ W0 | ⬜ pending |
+| 3-01-01 | 01 | 1 | SYNC-02 | unit | `npx jest --testPathPattern="SyncDashboard" --no-coverage` | No W0 | pending |
+| 3-01-02 | 01 | 1 | SYNC-03 | unit | `npx jest --testPathPattern="SyncSummary" --no-coverage` | No W0 | pending |
+| 3-01-03 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="classifyError" --no-coverage` | No W0 | pending |
+| 3-01-04 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="classifyError" --no-coverage` | No W0 | pending |
+| 3-01-05 | 01 | 1 | SYNC-04 | unit | `npx jest --testPathPattern="classifyError" --no-coverage` | No W0 | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
@@ -52,7 +52,7 @@ created: 2026-03-12
 
 - [ ] `src/components/__tests__/SyncDashboard.test.tsx` — stubs for SYNC-02 (localStorage timestamp read/write)
 - [ ] `src/components/__tests__/SyncSummary.test.tsx` — stubs for SYNC-03 (renders summary counts)
-- [ ] `src/app/api/sync/__tests__/route.test.ts` — stubs for SYNC-04 (classifyError maps error types to actionable strings)
+- [ ] `src/app/api/sync/__tests__/classifyError.test.ts` — stubs for SYNC-04 (classifyError maps error types to actionable strings)
 
 *Existing infrastructure covers framework setup — only test file stubs needed.*
 

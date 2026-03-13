@@ -5,6 +5,7 @@
 
 // Mock googleapis before importing anything that uses it
 const mockCalendarsInsert = jest.fn();
+const mockCalendarListPatch = jest.fn();
 const mockEventsInsert = jest.fn();
 const mockEventsUpdate = jest.fn();
 const mockEventsList = jest.fn();
@@ -19,6 +20,9 @@ jest.mock('googleapis', () => ({
     calendar: jest.fn().mockReturnValue({
       calendars: {
         insert: mockCalendarsInsert,
+      },
+      calendarList: {
+        patch: mockCalendarListPatch,
       },
       events: {
         list: mockEventsList,
@@ -87,6 +91,8 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
     mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
     // Default: calendars.insert returns a new calendar
     mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id-123' } });
+    // Default: calendarList.patch succeeds (sets sub-calendar color)
+    mockCalendarListPatch.mockResolvedValue({ data: {} });
     // Default: events.list returns empty (no existing events)
     mockEventsList.mockResolvedValue({ data: { items: [] } });
     // Default: insert succeeds

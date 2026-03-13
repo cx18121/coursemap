@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getSession } from '@/lib/session';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
@@ -21,6 +21,26 @@ export interface SyncJobState {
 // In-memory store for sync jobs. Acceptable for manual sync — no concurrent
 // sync jobs per user, and progress is acceptable to lose on server restart.
 export const syncJobs = new Map<string, SyncJobState>();
+
+// Classify an error into a user-facing actionable message.
+export function classifyError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('invalid credentials') || lower.includes('invalid_grant') || lower.includes('no access token')) {
+    return 'Your Google account connection has expired. Go to Settings and reconnect your account.';
+  }
+
+  if (lower.includes('rate limit') || lower.includes('quota') || lower.includes('usagelimits') || lower.includes('usage limits')) {
+    return 'Google Calendar quota exceeded. Please wait a few minutes and try again.';
+  }
+
+  if (lower.includes('canvas') || lower.includes('ics') || lower.includes('fetch')) {
+    return 'Could not fetch your Canvas feed. Check that the ICS URL is still valid in Settings.';
+  }
+
+  return `Sync failed: ${msg}`;
+}
 
 // Clean up completed jobs older than 5 minutes
 function pruneOldJobs() {
@@ -93,7 +113,7 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string) {
     job.completedAt = Date.now();
   } catch (err: unknown) {
     job.status = 'error';
-    job.error = err instanceof Error ? err.message : 'Sync failed';
+    job.error = classifyError(err);
     job.completedAt = Date.now();
   }
 }
@@ -132,9 +152,10 @@ export async function POST() {
   // Clean up old completed jobs periodically
   pruneOldJobs();
 
-  // Fire-and-forget: run sync in background — does NOT block response
-  // Errors are caught inside runSyncJob and recorded in job state
-  void runSyncJob(jobId, userId, user.canvasIcsUrl);
+  // Use after() to run sync after response is sent — ensures background sync
+  // completes on Vercel (void promise would be killed when response closes).
+  // Errors are caught inside runSyncJob and recorded in job state.
+  after(runSyncJob(jobId, userId, user.canvasIcsUrl));
 
   return NextResponse.json({ jobId }, { status: 202 });
 }

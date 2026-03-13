@@ -16,11 +16,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Canvas Sync
 
-- [ ] **CANVAS-01**: User can paste Canvas ICS feed URL and see parsed courses
-- [ ] **CANVAS-02**: User can select/deselect entire courses to include or exclude
-- [ ] **CANVAS-03**: User can select/deselect individual events within a course
+- [x] **CANVAS-01**: User can paste Canvas ICS feed URL and see parsed courses
+- [x] **CANVAS-02**: User can select/deselect entire courses to include or exclude
+- [x] **CANVAS-03**: User can select/deselect individual events within a course
 - [ ] **CANVAS-04**: Selected Canvas events push to personal Google Calendar with dedup
-- [ ] **CANVAS-05**: Each course's events get a distinct Google Calendar color
+- [x] **CANVAS-05**: Each course's events get a distinct Google Calendar color
 
 ### Calendar Mirroring
 
@@ -70,11 +70,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
-| CANVAS-01 | Phase 2 | Pending |
-| CANVAS-02 | Phase 2 | Pending |
-| CANVAS-03 | Phase 2 | Pending |
+| CANVAS-01 | Phase 2 | Complete |
+| CANVAS-02 | Phase 2 | Complete |
+| CANVAS-03 | Phase 2 | Complete |
 | CANVAS-04 | Phase 2 | Pending |
-| CANVAS-05 | Phase 2 | Pending |
+| CANVAS-05 | Phase 2 | Complete |
 | MIRROR-01 | Phase 2 | Pending |
 | MIRROR-02 | Phase 2 | Pending |
 | SYNC-01 | Phase 2 | Pending |

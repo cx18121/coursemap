@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-12T20:42:42.235Z"
+stopped_at: Completed 02-sync-pipeline-01-PLAN.md
+last_updated: "2026-03-13T00:03:32.153Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-auth-foundation P02 | 22 | 2 tasks | 10 files |
 | Phase 01-auth-foundation P03 | 7 | 2 tasks | 9 files |
 | Phase 01-auth-foundation P03 | 15 | 3 tasks | 9 files |
+| Phase 02-sync-pipeline P01 | 691 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 01-auth-foundation]: Middleware excludes /api from matcher — CVE-2025-29927 guidance: API routes verify session server-side, middleware is optimistic only
 - [Phase Phase 01-auth-foundation]: ReconnectBannerWrapper as separate client component: layout.tsx Server Component passes isAuthenticated, wrapper handles client-side fetch
 - [Phase Phase 01-auth-foundation]: SetupWizard manages step state locally (useState) initialized from server-determined currentStep prop — enables skip navigation without server roundtrips
+- [Phase 02-sync-pipeline]: Default-include pattern for course/event selections: no DB row means enabled, only exceptions stored
+- [Phase 02-sync-pipeline]: eventTitleCache uses onConflictDoNothing to handle concurrent cache writes without errors
+- [Phase 02-sync-pipeline]: colorAssignment round-robins through 11 Google Calendar event colorIds; existing courses keep their assigned color
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T20:42:42.206Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-sync-pipeline/02-CONTEXT.md
+Last session: 2026-03-13T00:03:32.059Z
+Stopped at: Completed 02-sync-pipeline-01-PLAN.md
+Resume file: None

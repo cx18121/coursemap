@@ -19,17 +19,17 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CANVAS-01**: User can paste Canvas ICS feed URL and see parsed courses
 - [x] **CANVAS-02**: User can select/deselect entire courses to include or exclude
 - [x] **CANVAS-03**: User can select/deselect individual events within a course
-- [ ] **CANVAS-04**: Selected Canvas events push to personal Google Calendar with dedup
+- [x] **CANVAS-04**: Selected Canvas events push to personal Google Calendar with dedup
 - [x] **CANVAS-05**: Each course's events get a distinct Google Calendar color
 
 ### Calendar Mirroring
 
-- [ ] **MIRROR-01**: School Google Calendar events mirror one-way to personal account
-- [ ] **MIRROR-02**: User can choose which school calendars to mirror (not forced to mirror all)
+- [x] **MIRROR-01**: School Google Calendar events mirror one-way to personal account
+- [x] **MIRROR-02**: User can choose which school calendars to mirror (not forced to mirror all)
 
 ### Sync Management
 
-- [ ] **SYNC-01**: User can trigger sync manually via "Sync Now" button
+- [x] **SYNC-01**: User can trigger sync manually via "Sync Now" button
 - [ ] **SYNC-02**: App displays last synced timestamp
 - [ ] **SYNC-03**: After sync, shows summary (X created, Y updated, Z skipped/failed)
 - [ ] **SYNC-04**: Clear error messages when auth fails, feed is invalid, or API quota is hit
@@ -73,11 +73,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CANVAS-01 | Phase 2 | Complete |
 | CANVAS-02 | Phase 2 | Complete |
 | CANVAS-03 | Phase 2 | Complete |
-| CANVAS-04 | Phase 2 | Pending |
+| CANVAS-04 | Phase 2 | Complete |
 | CANVAS-05 | Phase 2 | Complete |
-| MIRROR-01 | Phase 2 | Pending |
-| MIRROR-02 | Phase 2 | Pending |
-| SYNC-01 | Phase 2 | Pending |
+| MIRROR-01 | Phase 2 | Complete |
+| MIRROR-02 | Phase 2 | Complete |
+| SYNC-01 | Phase 2 | Complete |
 | SYNC-02 | Phase 3 | Pending |
 | SYNC-03 | Phase 3 | Pending |
 | SYNC-04 | Phase 3 | Pending |

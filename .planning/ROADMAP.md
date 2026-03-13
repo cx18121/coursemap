@@ -43,7 +43,7 @@ Plans:
   3. User can select individual events within a course to include or exclude
   4. User can choose which school Google calendars to mirror (not forced to mirror all)
   5. Clicking "Sync Now" pushes selected Canvas events and mirrored school events to the personal Google Calendar, with each course visually distinct by color
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 Plans:
 - [ ] 02-01-PLAN.md — DB schema extension (4 tables) + syncFilter, colorAssignment, titleCleanup services
 - [ ] 02-02-PLAN.md — gcalSync refactor (bulk dedup, sub-calendars) + school mirror service
@@ -69,5 +69,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
-| 2. Sync Pipeline | 0/4 | Planning complete | - |
+| 2. Sync Pipeline | 3/4 | In Progress|  |
 | 3. Reliability and Deploy | 0/? | Not started | - |

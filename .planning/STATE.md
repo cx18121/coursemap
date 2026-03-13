@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-sync-pipeline 02-02-PLAN.md
-last_updated: "2026-03-13T00:17:07.229Z"
+stopped_at: Completed 02-sync-pipeline 02-03-PLAN.md
+last_updated: "2026-03-13T00:29:04.998Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-auth-foundation P03 | 15 | 3 tasks | 9 files |
 | Phase 02-sync-pipeline P01 | 691 | 2 tasks | 9 files |
 | Phase 02-sync-pipeline P02 | 45 | 2 tasks | 5 files |
+| Phase 02-sync-pipeline P03 | 8 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 02-sync-pipeline]: ensureSubCalendar DB-first pattern prevents sub-calendar duplication — calendarId stored in courseSelections.gcalCalendarId after creation
 - [Phase 02-sync-pipeline]: colorId set at sub-calendar level only, not per-event — allows Google Calendar UI per-event color overrides and avoids calendar vs event palette confusion
 - [Phase 02-sync-pipeline]: School event titles copied verbatim to mirror calendars — no AI cleanup on school events per locked decision in CONTEXT.md
+- [Phase 02-sync-pipeline]: parse-ics switched to GET with session auth: no raw URLs in request bodies, canvasIcsUrl fetched from DB
+- [Phase 02-sync-pipeline]: Fire-and-forget void promise for background sync: simpler than waitUntil, sufficient for manual sync button use case
+- [Phase 02-sync-pipeline]: In-memory syncJobs Map with 5-minute TTL: acceptable for manual sync, progress loss on restart is acceptable
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:17:07.161Z
-Stopped at: Completed 02-sync-pipeline 02-02-PLAN.md
+Last session: 2026-03-13T00:29:04.913Z
+Stopped at: Completed 02-sync-pipeline 02-03-PLAN.md
 Resume file: None

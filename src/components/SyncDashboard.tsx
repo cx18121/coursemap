@@ -68,6 +68,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [syncError, setSyncError] = useState<string | null>(null);
   const [canvasSummary, setCanvasSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -109,6 +110,13 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     }
     loadData();
   }, [hasCanvasUrl, hasSchoolAccount]);
+
+  // ---- Read last synced timestamp from localStorage on mount --------------
+
+  useEffect(() => {
+    const stored = localStorage.getItem('lastSyncedAt');
+    if (stored) setLastSyncedAt(Number(stored));
+  }, []);
 
   // ---- Cleanup polling on unmount ----------------------------------------
 
@@ -230,6 +238,9 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           setSyncStatus('complete');
           if (statusData.canvasSummary) setCanvasSummary(statusData.canvasSummary);
           if (statusData.mirrorSummary) setMirrorSummary(statusData.mirrorSummary);
+          const now = Date.now();
+          localStorage.setItem('lastSyncedAt', String(now));
+          setLastSyncedAt(now);
         } else if (statusData.status === 'error') {
           clearInterval(pollIntervalRef.current!);
           pollIntervalRef.current = null;
@@ -267,6 +278,11 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           <p className="text-sm text-[--color-text-secondary]">
             Manage your Canvas courses and sync them to Google Calendar.
           </p>
+          {lastSyncedAt !== null && (
+            <p className="text-xs text-[--color-text-secondary]">
+              Last synced {new Date(lastSyncedAt).toLocaleString()}
+            </p>
+          )}
         </div>
 
         {/* No Canvas URL message */}

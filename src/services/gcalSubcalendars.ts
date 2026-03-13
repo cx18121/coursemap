@@ -17,7 +17,7 @@ import { courseSelections, schoolCalendarSelections } from '@/lib/db/schema';
  * @param calendar - Google Calendar API client (authenticated to personal account)
  * @param userId - The user's internal DB ID
  * @param courseName - The Canvas course name (used as part of the calendar summary)
- * @param colorId - Google Calendar colorId (1-24 palette) to assign to the sub-calendar
+ * @param colorId - Google Calendar colorId (1-11 palette) to assign to the sub-calendar
  * @returns The Google Calendar ID of the sub-calendar
  */
 export async function ensureSubCalendar(
@@ -39,14 +39,24 @@ export async function ensureSubCalendar(
   }
 
   // Create a new sub-calendar on the personal Google account
-  const { data } = await calendar.calendars.insert({
+  const insertRes = await calendar.calendars.insert({
     requestBody: {
       summary: `Canvas - ${courseName}`,
-      colorId,
     },
   });
 
-  const calendarId = data.id!;
+  const calendarId = (insertRes.data as calendar_v3.Schema$Calendar).id!;
+
+  // Set the calendar color via calendarList.patch (colorId goes on the list entry, not the calendar)
+  await calendar.calendarList.patch({
+    calendarId,
+    colorRgbFormat: false,
+    requestBody: {
+      colorId,
+    },
+  }).catch(() => {
+    // Non-fatal: color not set, calendar still created
+  });
 
   // Persist the new calendarId in DB so we don't re-create it next sync
   await db
@@ -91,13 +101,13 @@ export async function ensureMirrorSubCalendar(
   }
 
   // Create a new mirror sub-calendar on the personal account
-  const { data } = await calendar.calendars.insert({
+  const mirrorRes = await calendar.calendars.insert({
     requestBody: {
       summary: `School - ${calendarName}`,
     },
   });
 
-  const mirrorCalendarId = data.id!;
+  const mirrorCalendarId = (mirrorRes.data as calendar_v3.Schema$Calendar).id!;
 
   // Persist the mirror calendarId in DB
   await db

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Checkpoint 02-sync-pipeline 02-04-PLAN.md Task 3 (human-verify)
-last_updated: "2026-03-13T01:06:13.510Z"
+stopped_at: Completed 02-sync-pipeline 02-04-PLAN.md — all tasks done including human-verify and z-index fix
+last_updated: "2026-03-13T01:57:34.448Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
@@ -88,6 +88,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 02-sync-pipeline]: Server Component detects school account via oauthTokens query — boolean prop avoids client-side token exposure
 - [Phase 02-sync-pipeline]: calendarList.patch used for colorId on sub-calendars — colorId is a calendarList property, not a Calendar property
 - [Phase 02-sync-pipeline]: SyncSummary cleared on any change (course/event/color) per CONTEXT.md locked decision — no auto-dismiss
+- [Phase 02-sync-pipeline]: createPortal used for ColorPicker: backdrop-blur-lg creates inescapable stacking context; portal renders at document.body with position:fixed at z-index 9999
 
 ### Pending Todos
 
@@ -101,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T01:06:06.315Z
-Stopped at: Checkpoint 02-sync-pipeline 02-04-PLAN.md Task 3 (human-verify)
+Last session: 2026-03-13T01:57:34.271Z
+Stopped at: Completed 02-sync-pipeline 02-04-PLAN.md — all tasks done including human-verify and z-index fix
 Resume file: None

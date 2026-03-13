@@ -120,6 +120,17 @@ None - no external service configuration required.
 - Dashboard can call POST /api/sync and poll GET /api/sync/status?jobId=X for progress display
 - School calendar selection UI can use GET/PUT /api/school-calendars
 
+## Self-Check: PASSED
+
+- FOUND: src/app/api/parse-ics/route.ts
+- FOUND: src/app/api/user-selections/route.ts
+- FOUND: src/app/api/school-calendars/route.ts
+- FOUND: src/app/api/sync/route.ts
+- FOUND: src/app/api/sync/status/route.ts
+- FOUND: .planning/phases/02-sync-pipeline/02-03-SUMMARY.md
+- FOUND: commit b2b8362
+- FOUND: commit b1225f5
+
 ---
 *Phase: 02-sync-pipeline*
 *Completed: 2026-03-13*

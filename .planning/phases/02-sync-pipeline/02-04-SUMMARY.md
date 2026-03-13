@@ -47,7 +47,7 @@ key-decisions:
   - "Server Component fetches school OAuth token to determine hasSchoolAccount — no client-side check"
   - "Optimistic UI for all toggles — no rollback; server errors logged to console only"
   - "SyncSummary dismissed on any change (course toggle, event toggle, color change) per CONTEXT.md locked decision"
-  - "ColorPicker uses click-outside handler via useRef and document mousedown listener"
+  - "ColorPicker uses createPortal at document.body with position:fixed — backdrop-blur-lg creates inescapable stacking context; portal with z-index:9999 is the only reliable fix"
   - "calendarList.patch used for colorId (not calendar.insert requestBody) — colorId is a calendarList property"
   - "Legacy sync-gcal route stubbed with 410 Gone — superseded by /api/sync, CalendarSetup.tsx is prototype"
 
@@ -55,6 +55,7 @@ patterns-established:
   - "Polling pattern: setInterval stored in useRef, cleared in useEffect cleanup + terminal state handler"
   - "Glassmorphic card: bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border]"
   - "Server Component → Client Component prop passing: minimal data from server, client fetches rest on mount"
+  - "Portal pattern for popovers inside backdrop-blur containers: createPortal to document.body + anchorRef.getBoundingClientRect() for fixed positioning"
 
 requirements-completed: [CANVAS-01, CANVAS-02, CANVAS-03, CANVAS-05, MIRROR-02, SYNC-01]
 
@@ -69,10 +70,10 @@ completed: 2026-03-13
 
 ## Performance
 
-- **Duration:** ~34 min
+- **Duration:** ~35 min
 - **Started:** 2026-03-13T00:30:22Z
-- **Completed:** 2026-03-13T01:04:56Z
-- **Tasks:** 2 of 3 complete (Task 3 is human-verify checkpoint)
+- **Completed:** 2026-03-12T00:00:00Z
+- **Tasks:** 3 of 3 complete
 - **Files modified:** 10
 
 ## Accomplishments
@@ -89,8 +90,9 @@ Each task was committed atomically:
 
 1. **Task 1: Build dashboard page with SyncDashboard, CourseAccordion, and SchoolCalendarList** - `c0c3eba` (feat)
 2. **Task 2: Build SyncButton with progress bar and SyncSummary panel** - `54bfa20` (feat)
+3. **Task 3: Human-verify checkpoint + z-index fix** - `7a318e7` (fix)
 
-**Plan metadata:** (docs commit follows after checkpoint)
+**Plan metadata:** `0bfc949` (docs: checkpoint state), final docs commit follows
 
 ## Files Created/Modified
 
@@ -132,10 +134,17 @@ Each task was committed atomically:
 - **Verification:** Build passes after change
 - **Committed in:** c0c3eba (Task 1 commit)
 
+**3. [Rule 1 - Bug] Fixed ColorPicker rendering behind other accordion cards**
+- **Found during:** Task 3 (human-verify — user reported "the color picker is under everything else right now")
+- **Issue:** `backdrop-blur-lg` on `CourseAccordion` root creates a CSS stacking context. Any `z-index` on child elements is scoped within it, so the picker appeared behind sibling accordion cards regardless of z-50 value.
+- **Fix:** Refactored `ColorPicker` to use `createPortal` at `document.body`. Position computed via `anchorRef.getBoundingClientRect()` with `position:fixed` and `zIndex:9999`. Added `anchorRef: React.RefObject<HTMLButtonElement>` prop; updated `CourseAccordion` to hold `colorDotRef` and pass it through.
+- **Files modified:** `src/components/ColorPicker.tsx`, `src/components/CourseAccordion.tsx`
+- **Committed in:** `7a318e7`
+
 ---
 
-**Total deviations:** 2 auto-fixed (2 blocking pre-existing build errors)
-**Impact on plan:** Both were pre-existing failures that blocked the build. No scope creep.
+**Total deviations:** 3 auto-fixed (2 blocking pre-existing build errors + 1 z-index rendering bug)
+**Impact on plan:** All fixes essential for correctness and usability. No scope creep.
 
 ## Issues Encountered
 
@@ -147,9 +156,9 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- All 7 dashboard components ready; human verification checkpoint (Task 3) pending
-- After human verification confirms end-to-end flow, Phase 2 is complete
-- Phase 3 (deployment/polish) can proceed once human checkpoint is approved
+- All 7 dashboard components complete, color picker z-index issue resolved
+- Human verification checkpoint passed (Task 3)
+- Phase 2 complete — Phase 3 (deployment/polish) can proceed
 
 ## Self-Check: PASSED
 
@@ -163,6 +172,7 @@ None - no external service configuration required.
 - FOUND: src/app/dashboard/page.tsx (updated)
 - FOUND: commit c0c3eba
 - FOUND: commit 54bfa20
+- FOUND: commit 7a318e7 (z-index fix)
 
 ---
 *Phase: 02-sync-pipeline*

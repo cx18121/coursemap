@@ -13,7 +13,7 @@ Starting from a stateless prototype with manual token pasting, this roadmap evol
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Auth Foundation** - Persistent dual-account Google OAuth with encrypted token storage (completed 2026-03-12)
-- [ ] **Phase 2: Sync Pipeline** - Canvas event push and school calendar mirror via a working manual sync
+- [x] **Phase 2: Sync Pipeline** - Canvas event push and school calendar mirror via a working manual sync (completed 2026-03-13)
 - [ ] **Phase 3: Reliability and Deploy** - Sync status, error feedback, and production deployment
 
 ## Phase Details
@@ -43,7 +43,7 @@ Plans:
   3. User can select individual events within a course to include or exclude
   4. User can choose which school Google calendars to mirror (not forced to mirror all)
   5. Clicking "Sync Now" pushes selected Canvas events and mirrored school events to the personal Google Calendar, with each course visually distinct by color
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [ ] 02-01-PLAN.md — DB schema extension (4 tables) + syncFilter, colorAssignment, titleCleanup services
 - [ ] 02-02-PLAN.md — gcalSync refactor (bulk dedup, sub-calendars) + school mirror service
@@ -69,5 +69,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
-| 2. Sync Pipeline | 3/4 | In Progress|  |
+| 2. Sync Pipeline | 4/4 | Complete   | 2026-03-13 |
 | 3. Reliability and Deploy | 0/? | Not started | - |

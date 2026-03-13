@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-sync-pipeline 02-03-PLAN.md
-last_updated: "2026-03-13T00:29:04.998Z"
+stopped_at: Checkpoint 02-sync-pipeline 02-04-PLAN.md Task 3 (human-verify)
+last_updated: "2026-03-13T01:06:13.510Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-sync-pipeline P01 | 691 | 2 tasks | 9 files |
 | Phase 02-sync-pipeline P02 | 45 | 2 tasks | 5 files |
 | Phase 02-sync-pipeline P03 | 8 | 2 tasks | 5 files |
+| Phase 02-sync-pipeline P04 | 34 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 02-sync-pipeline]: parse-ics switched to GET with session auth: no raw URLs in request bodies, canvasIcsUrl fetched from DB
 - [Phase 02-sync-pipeline]: Fire-and-forget void promise for background sync: simpler than waitUntil, sufficient for manual sync button use case
 - [Phase 02-sync-pipeline]: In-memory syncJobs Map with 5-minute TTL: acceptable for manual sync, progress loss on restart is acceptable
+- [Phase 02-sync-pipeline]: Server Component detects school account via oauthTokens query — boolean prop avoids client-side token exposure
+- [Phase 02-sync-pipeline]: calendarList.patch used for colorId on sub-calendars — colorId is a calendarList property, not a Calendar property
+- [Phase 02-sync-pipeline]: SyncSummary cleared on any change (course/event/color) per CONTEXT.md locked decision — no auto-dismiss
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:29:04.913Z
-Stopped at: Completed 02-sync-pipeline 02-03-PLAN.md
+Last session: 2026-03-13T01:06:06.315Z
+Stopped at: Checkpoint 02-sync-pipeline 02-04-PLAN.md Task 3 (human-verify)
 Resume file: None

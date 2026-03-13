@@ -30,9 +30,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Sync Management
 
 - [x] **SYNC-01**: User can trigger sync manually via "Sync Now" button
-- [ ] **SYNC-02**: App displays last synced timestamp
-- [ ] **SYNC-03**: After sync, shows summary (X created, Y updated, Z skipped/failed)
-- [ ] **SYNC-04**: Clear error messages when auth fails, feed is invalid, or API quota is hit
+- [x] **SYNC-02**: App displays last synced timestamp
+- [x] **SYNC-03**: After sync, shows summary (X created, Y updated, Z skipped/failed)
+- [x] **SYNC-04**: Clear error messages when auth fails, feed is invalid, or API quota is hit
 
 ## v2 Requirements
 
@@ -78,9 +78,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIRROR-01 | Phase 2 | Complete |
 | MIRROR-02 | Phase 2 | Complete |
 | SYNC-01 | Phase 2 | Complete |
-| SYNC-02 | Phase 3 | Pending |
-| SYNC-03 | Phase 3 | Pending |
-| SYNC-04 | Phase 3 | Pending |
+| SYNC-02 | Phase 3 | Complete |
+| SYNC-03 | Phase 3 | Complete |
+| SYNC-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 15 total

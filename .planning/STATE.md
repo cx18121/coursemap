@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-sync-pipeline 02-04-PLAN.md — all tasks done including human-verify and z-index fix
-last_updated: "2026-03-13T02:17:09.977Z"
+stopped_at: Completed 03-reliability-and-deploy 03-01-PLAN.md
+last_updated: "2026-03-13T04:17:05.269Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
   percent: 0
 ---
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-sync-pipeline P02 | 45 | 2 tasks | 5 files |
 | Phase 02-sync-pipeline P03 | 8 | 2 tasks | 5 files |
 | Phase 02-sync-pipeline P04 | 34 | 2 tasks | 10 files |
+| Phase 03-reliability-and-deploy P01 | 46 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 02-sync-pipeline]: calendarList.patch used for colorId on sub-calendars — colorId is a calendarList property, not a Calendar property
 - [Phase 02-sync-pipeline]: SyncSummary cleared on any change (course/event/color) per CONTEXT.md locked decision — no auto-dismiss
 - [Phase 02-sync-pipeline]: createPortal used for ColorPicker: backdrop-blur-lg creates inescapable stacking context; portal renders at document.body with position:fixed at z-index 9999
+- [Phase 03-reliability-and-deploy]: classifyError function maps auth/quota/canvas/unknown errors to actionable user-facing strings in sync route catch block
+- [Phase 03-reliability-and-deploy]: after() from next/server replaces void fire-and-forget for Vercel background task lifecycle safety
+- [Phase 03-reliability-and-deploy]: Node env for component tests: jsdom 26 hangs on Node 22/WSL, tests use pure-function approach instead
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T01:57:34.271Z
-Stopped at: Completed 02-sync-pipeline 02-04-PLAN.md — all tasks done including human-verify and z-index fix
+Last session: 2026-03-13T04:17:05.176Z
+Stopped at: Completed 03-reliability-and-deploy 03-01-PLAN.md
 Resume file: None

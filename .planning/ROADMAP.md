@@ -45,10 +45,10 @@ Plans:
   5. Clicking "Sync Now" pushes selected Canvas events and mirrored school events to the personal Google Calendar, with each course visually distinct by color
 **Plans:** 4/4 plans complete
 Plans:
-- [ ] 02-01-PLAN.md — DB schema extension (4 tables) + syncFilter, colorAssignment, titleCleanup services
-- [ ] 02-02-PLAN.md — gcalSync refactor (bulk dedup, sub-calendars) + school mirror service
-- [ ] 02-03-PLAN.md — API routes (parse-ics refactor, user-selections, school-calendars, unified sync)
-- [ ] 02-04-PLAN.md — Dashboard UI (course accordion, school calendar list, sync button, summary)
+- [x] 02-01-PLAN.md — DB schema extension (4 tables) + syncFilter, colorAssignment, titleCleanup services
+- [x] 02-02-PLAN.md — gcalSync refactor (bulk dedup, sub-calendars) + school mirror service
+- [x] 02-03-PLAN.md — API routes (parse-ics refactor, user-selections, school-calendars, unified sync)
+- [x] 02-04-PLAN.md — Dashboard UI (course accordion, school calendar list, sync button, summary)
 
 ### Phase 3: Reliability and Deploy
 **Goal**: Users get clear feedback on sync results and errors, and the app is accessible from any device via a public URL
@@ -59,7 +59,10 @@ Plans:
   2. After a sync completes, the UI shows a summary of what changed (X created, Y updated, Z skipped or failed)
   3. When something goes wrong — expired auth, bad ICS URL, or API quota — the user sees a specific, actionable error message instead of a silent failure
   4. The app is live at a public HTTPS URL and works correctly from any browser
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Sync feedback: localStorage timestamp, classifyError for actionable messages, after() lifecycle fix
+- [ ] 03-02-PLAN.md — Vercel production deployment + end-to-end verification
 
 ## Progress
 
@@ -70,4 +73,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
 | 2. Sync Pipeline | 4/4 | Complete   | 2026-03-13 |
-| 3. Reliability and Deploy | 0/? | Not started | - |
+| 3. Reliability and Deploy | 0/2 | Planning complete | - |

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export const GOOGLE_CALENDAR_COLORS: Record<string, { name: string; hex: string }> = {
   '1':  { name: 'Lavender',  hex: '#7986CB' },
@@ -17,28 +18,46 @@ export const GOOGLE_CALENDAR_COLORS: Record<string, { name: string; hex: string 
 };
 
 interface ColorPickerProps {
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
   currentColorId: string;
   onSelect: (colorId: string) => void;
   onClose: () => void;
 }
 
-export default function ColorPicker({ currentColorId, onSelect, onClose }: ColorPickerProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export default function ColorPicker({ anchorRef, currentColorId, onSelect, onClose }: ColorPickerProps) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Calculate position from anchor element using fixed coords so the popover
+  // escapes all stacking contexts (backdrop-blur, etc.)
+  useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 6, left: rect.left });
+    }
+  }, [anchorRef]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        popoverRef.current && !popoverRef.current.contains(target) &&
+        anchorRef.current && !anchorRef.current.contains(target)
+      ) {
         onClose();
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  }, [onClose, anchorRef]);
 
-  return (
+  if (!pos) return null;
+
+  return createPortal(
     <div
-      ref={ref}
-      className="absolute top-full left-0 mt-1 z-50 bg-[--color-surface] border border-[--color-border] rounded-xl shadow-xl p-2 w-44"
+      ref={popoverRef}
+      style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+      className="bg-[--color-surface] border border-[--color-border] rounded-xl shadow-xl p-2 w-44"
     >
       <div className="grid grid-cols-2 gap-1">
         {Object.entries(GOOGLE_CALENDAR_COLORS).map(([id, { name, hex }]) => (
@@ -60,6 +79,7 @@ export default function ColorPicker({ currentColorId, onSelect, onClose }: Color
           </button>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

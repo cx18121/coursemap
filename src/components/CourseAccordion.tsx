@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import EventRow from './EventRow';
 import ColorPicker, { GOOGLE_CALENDAR_COLORS } from './ColorPicker';
 
@@ -35,6 +35,7 @@ export default function CourseAccordion({
 }: CourseAccordionProps) {
   const [expanded, setExpanded] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const colorDotRef = useRef<HTMLButtonElement>(null);
 
   const includedCount = events.filter((e) => !e.excluded).length;
   const colorHex = GOOGLE_CALENDAR_COLORS[colorId]?.hex ?? '#3F51B5';
@@ -65,6 +66,7 @@ export default function CourseAccordion({
         {/* Color dot */}
         <div className="relative flex-shrink-0">
           <button
+            ref={colorDotRef}
             onClick={handleColorClick}
             className="w-5 h-5 rounded-full border-2 border-white/20 hover:border-white/50 transition-colors focus:outline-none"
             style={{ backgroundColor: colorHex }}
@@ -73,6 +75,7 @@ export default function CourseAccordion({
           />
           {showColorPicker && (
             <ColorPicker
+              anchorRef={colorDotRef}
               currentColorId={colorId}
               onSelect={(id) => onChangeColor(courseName, id)}
               onClose={() => setShowColorPicker(false)}

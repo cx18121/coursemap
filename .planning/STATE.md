@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: "Completed 04-event-type-grouping 04-04-PLAN.md — awaiting checkpoint:human-verify"
-last_updated: "2026-03-15T22:48:35.536Z"
+stopped_at: Completed 04-event-type-grouping 04-04-PLAN.md — per-type sync filters design revision complete
+last_updated: "2026-03-15T23:15:46.820Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 4
@@ -79,6 +79,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P01 | 15 | 2 tasks | 5 files |
 | Phase 04-event-type-grouping P02 | 10 | 2 tasks | 4 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 11 | 2 tasks | 6 files |
+| Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 25 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 04-event-type-grouping]: syncCanvasEvents typeGroupingEnabled is optional (defaults to false) to preserve backward compatibility with existing callers
 - [Phase 04-event-type-grouping]: Toggle PATCH uses optimistic update with silent revert on failure — matches existing course toggle UX pattern
 - [Phase 04-event-type-grouping]: typeGroupingEnabled read from users DB row in POST /api/sync handler and passed as parameter to runSyncJob — avoids extra DB call inside background job
+- [Phase 04-event-type-grouping]: Type grouping always-on: replaced typeGroupingEnabled boolean with 4 per-type columns (sync_assignments/quizzes/discussions/events), all default true; no master toggle
+- [Phase 04-event-type-grouping]: Announcements grouped under syncEvents toggle in UI and TYPE_TOGGLE_MAP — no separate announcement checkbox
 
 ### Roadmap Evolution
 
@@ -138,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T22:48:35.509Z
-Stopped at: Completed 04-event-type-grouping 04-04-PLAN.md — awaiting checkpoint:human-verify
+Last session: 2026-03-15T23:15:46.787Z
+Stopped at: Completed 04-event-type-grouping 04-04-PLAN.md — per-type sync filters design revision complete
 Resume file: None

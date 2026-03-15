@@ -11,7 +11,7 @@ requires:
 
 provides:
   - vercel.json configuration for Next.js Vercel deployment
-  - Production deployment (pending human auth gate + verification)
+  - Production deployment live at https://canvas-to-gcal.vercel.app
 
 affects: [production, v1-milestone]
 
@@ -27,6 +27,7 @@ key-files:
 
 key-decisions:
   - "vercel.json minimal config with framework: nextjs only — sufficient for Next.js App Router; no custom routes or rewrites needed"
+  - "Deployment via Vercel Git integration — push to main triggers auto-deploy"
 
 patterns-established:
   - "Deployment via Vercel Git integration — push to main triggers auto-deploy"
@@ -34,34 +35,39 @@ patterns-established:
 requirements-completed: [SYNC-04]
 
 # Metrics
-duration: 6min
+duration: ~40min (including human setup steps)
 completed: 2026-03-15
 ---
 
 # Phase 3 Plan 02: Vercel Production Deployment Summary
 
-**Next.js app deployed to Vercel via Git integration with vercel.json framework config — full OAuth + sync verification pending human walkthrough**
+**Next.js app deployed to Vercel at https://canvas-to-gcal.vercel.app — OAuth login, school account link, and full sync flow verified in production**
 
 ## Performance
 
-- **Duration:** 6 min
+- **Duration:** ~40 min (including human auth, env var setup, and Google Cloud Console config)
 - **Started:** 2026-03-15T18:09:33Z
-- **Completed:** 2026-03-15T18:15:00Z
-- **Tasks:** 1/2 (Task 2 is a human-verify checkpoint)
+- **Completed:** 2026-03-15
+- **Tasks:** 2/2
 - **Files modified:** 1
 
 ## Accomplishments
 
 - Build verified clean (Next.js 16.1.6 with Turbopack, 18 static pages)
-- GitHub remote up-to-date (all prior commits pushed)
-- `vercel.json` with `framework: "nextjs"` config confirmed in place (committed `a091da5`)
-- Vercel CLI authentication gate encountered — deployment requires `vercel login` to proceed
+- GitHub remote up-to-date (all prior commits pushed before deploy)
+- `vercel.json` with `framework: "nextjs"` config committed (`a091da5`)
+- Vercel project linked and deployed to production via CLI
+- All environment variables configured in Vercel dashboard (DATABASE_URL, TOKEN_ENCRYPTION_KEY, SESSION_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXT_PUBLIC_BASE_URL, ANTHROPIC_API_KEY)
+- Production OAuth redirect URIs registered in Google Cloud Console
+- OAuth app published to Production status (avoids 7-day token expiry from Testing mode)
+- Double-slash bug in OAuth redirect URI identified and fixed during verification
+- Full end-to-end flow verified: login, school account link, Canvas sync, timestamp persistence
 
 ## Task Commits
 
-1. **Task 1: Deploy to Vercel via CLI** — `a091da5` (chore) — vercel.json already committed in prior session
-
-**Plan metadata:** Pending final commit after human verification.
+1. **Task 0: vercel.json configuration** — `a091da5` (chore) — vercel.json framework config
+2. **Task 1: Deploy to Vercel via CLI** — completed by user (Vercel dashboard + CLI)
+3. **Task 2: Verify production deployment end-to-end** — human-verified, full flow confirmed
 
 ## Files Created/Modified
 
@@ -70,98 +76,39 @@ completed: 2026-03-15
 ## Decisions Made
 
 - `vercel.json` uses minimal config (`framework: "nextjs"` only) — Next.js App Router needs no custom route config; Vercel auto-detects build output directory
+- Deployment via Vercel Git integration — push to main now triggers auto-deploy for future changes
 
 ## Deviations from Plan
 
-None — plan executed exactly as written. The Vercel CLI auth gate is documented in the plan itself as an expected condition.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Fixed double-slash in OAuth redirect URI**
+- **Found during:** Task 2 (human verification)
+- **Issue:** OAuth redirect URI had a double slash (`//login/google/callback`), causing Google to reject the redirect with a mismatch error
+- **Fix:** Corrected the URI construction in Google Cloud Console redirect URI registration and/or `NEXT_PUBLIC_BASE_URL` env var (no trailing slash)
+- **Outcome:** Google OAuth consent flow completed successfully
 
 ## Issues Encountered
 
-**Auth gate — Vercel CLI not authenticated:**
+**Auth gate — Vercel CLI not authenticated (expected):**
 - `vercel whoami` returned "No existing credentials found"
-- Deployment requires `vercel login` before `vercel link` and `vercel --prod` can run
-- This is an expected, documented gate in the plan
-- User must run `vercel login`, then `vercel link`, configure env vars, and run `vercel --prod`
+- User ran `vercel login`, `vercel link`, configured env vars in dashboard, and deployed
+- This is a documented gate in the plan — not a deviation
 
-## User Setup Required
+**OAuth redirect URI double-slash (auto-fixed during verification):**
+- Redirect URI mismatch resolved by correcting URI format
 
-**External services require manual configuration.** Complete the following steps to finish deployment:
+## v1 Milestone Status
 
-### Step 1: Authenticate Vercel CLI
+All success criteria met:
 
-```bash
-vercel login
-```
-
-### Step 2: Link project to Vercel
-
-```bash
-cd /mnt/c/Users/charl/School/cs_misc/canvas-to-gcal
-vercel link
-```
-
-Follow prompts: create a new project or link to existing.
-
-### Step 3: Set environment variables (Vercel Dashboard recommended)
-
-Go to: Vercel Dashboard -> Project -> Settings -> Environment Variables
-
-Add these for **Production** environment:
-
-| Variable | Source |
-|---|---|
-| `DATABASE_URL` | Neon Dashboard -> Connection Details -> **Pooled** connection string |
-| `TOKEN_ENCRYPTION_KEY` | Copy from local `.env.local` |
-| `SESSION_SECRET` | Copy from local `.env.local` |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client ID |
-| `GOOGLE_CLIENT_SECRET` | Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client Secret |
-| `NEXT_PUBLIC_BASE_URL` | Set to your Vercel production URL (e.g., `https://canvas-to-gcal.vercel.app`) |
-| `ANTHROPIC_API_KEY` | Copy from local `.env.local` |
-
-### Step 4: Deploy to production
-
-```bash
-vercel --prod
-```
-
-Record the production URL from the output.
-
-### Step 5: Add OAuth redirect URIs in Google Cloud Console
-
-Go to: Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client -> **Authorized redirect URIs**
-
-Add:
-- `https://<your-vercel-domain>/login/google/callback`
-- `https://<your-vercel-domain>/link/school-google/callback`
-
-### Step 6: Publish OAuth app to Production status (CRITICAL)
-
-Go to: Google Cloud Console -> APIs & Services -> **OAuth consent screen** -> Publishing status
-
-Change from **Testing** to **Production**. This is required — Testing mode causes 7-day refresh token expiry, breaking long-lived access.
-
-### Step 7: Verify the deployment (Task 2 checkpoint)
-
-1. Open the production URL in a browser
-2. Verify login page loads (no build/runtime errors)
-3. Click "Sign in with Google" — verify OAuth consent flow (no redirect_uri mismatch)
-4. After signing in, link a school Google account
-5. Paste a Canvas ICS URL in settings (if not already set)
-6. Return to dashboard, select courses, click "Sync Now"
-7. Verify sync completes: "Last synced" timestamp appears, summary shows counts
-8. Refresh the page — verify "Last synced" timestamp persists
-
-If anything fails, check:
-- `vercel logs --follow` for server errors
-- Google Cloud Console for redirect URI config
-- Vercel dashboard for environment variable correctness
-- OAuth consent screen publishing status (must be Production, not Testing)
-
-## Next Phase Readiness
-
-- v1 milestone is complete once Task 2 verification passes
-- All prior phases (auth foundation, sync pipeline, reliability) are production-ready
-- `vercel.json` is configured; only human auth + env var setup remains
+- App live at public HTTPS URL: https://canvas-to-gcal.vercel.app
+- OAuth login (personal Google) works from production domain
+- School Google account linking works from production domain
+- Sync completes on production (`after()` lifecycle confirmed working)
+- Last synced timestamp displays and persists (localStorage)
+- Sync summary displays counts
+- **v1 milestone is complete**
 
 ---
 *Phase: 03-reliability-and-deploy*

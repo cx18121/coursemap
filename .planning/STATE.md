@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: "Completed 03-reliability-and-deploy 03-02-PLAN.md (auth gate: vercel login required for deployment)"
-last_updated: "2026-03-15T18:24:16.453Z"
+stopped_at: "Completed 03-reliability-and-deploy 03-02-PLAN.md — v1 milestone complete, app live at https://canvas-to-gcal.vercel.app"
+last_updated: "2026-03-15T19:27:41.439Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 3
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-sync-pipeline P04 | 34 | 2 tasks | 10 files |
 | Phase 03-reliability-and-deploy P01 | 46 | 3 tasks | 5 files |
 | Phase 03-reliability-and-deploy P02 | 14 | 1 tasks | 1 files |
+| Phase 03-reliability-and-deploy P02 | 40 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 03-reliability-and-deploy]: after() from next/server replaces void fire-and-forget for Vercel background task lifecycle safety
 - [Phase 03-reliability-and-deploy]: Node env for component tests: jsdom 26 hangs on Node 22/WSL, tests use pure-function approach instead
 - [Phase 03-reliability-and-deploy]: vercel.json minimal config with framework: nextjs only — sufficient for Next.js App Router; no custom routes needed
+- [Phase 03-reliability-and-deploy]: Deployment via Vercel Git integration — push to main triggers auto-deploy
 
 ### Pending Todos
 
@@ -108,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T18:24:16.417Z
-Stopped at: Completed 03-reliability-and-deploy 03-02-PLAN.md (auth gate: vercel login required for deployment)
+Last session: 2026-03-15T19:27:41.406Z
+Stopped at: Completed 03-reliability-and-deploy 03-02-PLAN.md — v1 milestone complete, app live at https://canvas-to-gcal.vercel.app
 Resume file: None

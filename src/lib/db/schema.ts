@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   canvasIcsUrl: text("canvas_ics_url"), // Phase 1: wizard step 3
+  typeGroupingEnabled: boolean('type_grouping_enabled').notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .defaultNow(),
@@ -121,5 +122,23 @@ export const schoolCalendarSelections = pgTable(
       t.userId,
       t.schoolCalendarId
     ),
+  })
+);
+
+// Per-(course, event-type) sub-calendar mapping — one GCal sub-calendar per course+type combination
+// Created on demand when typeGroupingEnabled=true on first sync for that (userId, courseName, eventType) triple
+export const courseTypeCalendars = pgTable(
+  'course_type_calendars',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseName: text('course_name').notNull(),
+    eventType: text('event_type').notNull(), // 'assignment' | 'quiz' | 'discussion' | 'announcement' | 'event'
+    gcalCalendarId: text('gcal_calendar_id').notNull(),
+  },
+  (t) => ({
+    uniqueIdx: uniqueIndex('course_type_cal_idx').on(t.userId, t.courseName, t.eventType),
   })
 );

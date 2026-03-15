@@ -30,12 +30,14 @@ export default async function DashboardPage() {
   const userName = user.name;
   const hasCanvasUrl = !!user.canvasIcsUrl;
   const hasSchoolAccount = !!schoolToken;
+  const initialTypeGroupingEnabled = user.typeGroupingEnabled ?? false;
 
   return (
     <SyncDashboard
       userName={userName}
       hasCanvasUrl={hasCanvasUrl}
       hasSchoolAccount={hasSchoolAccount}
+      initialTypeGroupingEnabled={initialTypeGroupingEnabled}
     />
   );
 }

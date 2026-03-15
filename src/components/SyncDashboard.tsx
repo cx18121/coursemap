@@ -5,6 +5,7 @@ import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
 import SyncSummary from './SyncSummary';
+import TypeGroupingToggle from './TypeGroupingToggle';
 
 // ---- Types ---------------------------------------------------------------
 
@@ -53,11 +54,12 @@ interface SyncDashboardProps {
   userName: string;
   hasCanvasUrl: boolean;
   hasSchoolAccount: boolean;
+  initialTypeGroupingEnabled: boolean;
 }
 
 // ---- Component -----------------------------------------------------------
 
-export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount }: SyncDashboardProps) {
+export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount, initialTypeGroupingEnabled }: SyncDashboardProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,6 +71,9 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [canvasSummary, setCanvasSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+
+  const [typeGroupingEnabled, setTypeGroupingEnabled] = useState<boolean>(initialTypeGroupingEnabled);
+  const [showFirstEnableNote, setShowFirstEnableNote] = useState(false);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -187,6 +192,23 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
       }),
     }).catch(console.error);
   }, []);
+
+  const handleToggleTypeGrouping = useCallback(async (enabled: boolean) => {
+    const previous = typeGroupingEnabled;
+    setTypeGroupingEnabled(enabled);
+    if (enabled && !previous) {
+      setShowFirstEnableNote(true);
+    }
+    clearSummary();
+    await fetch('/api/user-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ typeGroupingEnabled: enabled }),
+    }).catch(() => {
+      // Silent revert on failure — matches existing course toggle pattern
+      setTypeGroupingEnabled(previous);
+    });
+  }, [typeGroupingEnabled]);
 
   const handleToggleSchoolCalendar = useCallback(
     async (calendarId: string, calendarName: string, enabled: boolean) => {
@@ -307,6 +329,21 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         {loadError && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
             <p className="text-sm text-red-400">{loadError}</p>
+          </div>
+        )}
+
+        {/* Type grouping toggle — only when courses are loaded */}
+        {!isLoading && hasCanvasUrl && courses.length > 0 && (
+          <div className="space-y-2">
+            <TypeGroupingToggle
+              enabled={typeGroupingEnabled}
+              onToggle={handleToggleTypeGrouping}
+            />
+            {showFirstEnableNote && typeGroupingEnabled && (
+              <p role="note" className="text-xs text-[--color-text-secondary] px-1">
+                Existing &apos;Canvas - CourseName&apos; calendars remain in Google Calendar. New type sub-calendars will be created on next sync.
+              </p>
+            )}
           </div>
         )}
 

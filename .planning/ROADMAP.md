@@ -74,3 +74,16 @@ Phases execute in numeric order: 1 → 2 → 3
 | 1. Auth Foundation | 3/3 | Complete   | 2026-03-12 |
 | 2. Sync Pipeline | 4/4 | Complete   | 2026-03-13 |
 | 3. Reliability and Deploy | 2/2 | Complete   | 2026-03-15 |
+
+### Phase 4: Event type grouping — sub-calendars per course and type
+
+**Goal:** Users can opt in to type-based sub-calendar grouping so Canvas events are organized into per-(course, type) calendars (Assignments, Quizzes, Discussions, Events) instead of one calendar per course
+**Requirements**: GROUP-01, GROUP-02, GROUP-03, GROUP-04, GROUP-05, GROUP-06
+**Depends on:** Phase 3
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — eventTypeClassifier service (TDD) + DB schema extension (courseTypeCalendars table, users.typeGroupingEnabled)
+- [ ] 04-02-PLAN.md — CanvasEvent.eventType field + parseCanvasFeed population + ensureTypeSubCalendar helper
+- [ ] 04-03-PLAN.md — syncCanvasEvents typeGroupingEnabled routing branch + test coverage
+- [ ] 04-04-PLAN.md — /api/user-settings PATCH route + TypeGroupingToggle UI + SyncDashboard wiring

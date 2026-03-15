@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-event-type-grouping 04-04-PLAN.md — per-type sync filters design revision complete
-last_updated: "2026-03-15T23:15:46.820Z"
+stopped_at: Completed 04-event-type-grouping 04-03-PLAN.md — routing verification complete, 138 tests pass
+last_updated: "2026-03-15T23:20:27.934Z"
 last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 ---
@@ -80,6 +80,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-event-type-grouping P02 | 10 | 2 tasks | 4 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 11 | 2 tasks | 6 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 25 | 3 tasks | 8 files |
+| Phase 04-event-type-grouping-sub-calendars-per-course-and-type P03 | 3 | 1 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 04-event-type-grouping]: typeGroupingEnabled read from users DB row in POST /api/sync handler and passed as parameter to runSyncJob — avoids extra DB call inside background job
 - [Phase 04-event-type-grouping]: Type grouping always-on: replaced typeGroupingEnabled boolean with 4 per-type columns (sync_assignments/quizzes/discussions/events), all default true; no master toggle
 - [Phase 04-event-type-grouping]: Announcements grouped under syncEvents toggle in UI and TYPE_TOGGLE_MAP — no separate announcement checkbox
+- [Phase 04-event-type-grouping]: Plan 04-04 pre-implemented routing required by 04-03 using always-on EnabledEventTypes design instead of boolean typeGroupingEnabled toggle — GROUP-03 and GROUP-04 fully satisfied
 
 ### Roadmap Evolution
 
@@ -141,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T23:15:46.787Z
-Stopped at: Completed 04-event-type-grouping 04-04-PLAN.md — per-type sync filters design revision complete
+Last session: 2026-03-15T23:20:27.854Z
+Stopped at: Completed 04-event-type-grouping 04-03-PLAN.md — routing verification complete, 138 tests pass
 Resume file: None

@@ -1,4 +1,5 @@
 import { parseCanvasFeed, CanvasEvent } from './icalParser';
+import { CanvasEventType } from './eventTypeClassifier';
 import ical from 'node-ical';
 
 jest.mock('node-ical', () => {
@@ -50,13 +51,13 @@ describe('icalParser Service', () => {
       }
     };
 
-    (ical.default.async.fromURL as jest.Mock).mockResolvedValue(mockIcalData);
+    (ical.async.fromURL as jest.Mock).mockResolvedValue(mockIcalData);
 
     const testUrl = 'https://canvas.example.edu/feeds/calendars/user_xxxxx.ics';
     const result = await parseCanvasFeed(testUrl);
 
     // Verify it called the correct URL
-    expect(ical.default.async.fromURL).toHaveBeenCalledWith(testUrl);
+    expect(ical.async.fromURL).toHaveBeenCalledWith(testUrl);
 
     // Verify properties of the result grouping
     expect(Object.keys(result)).toHaveLength(3);
@@ -65,13 +66,37 @@ describe('icalParser Service', () => {
     expect(result['Math 101']).toBeDefined();
     expect(result['Math 101'][0].summary).toBe('Quiz 1 [Math 101]');
     expect(result['Math 101'][0].courseName).toBe('Math 101');
-    
+    expect(result['Math 101'][0].eventType).toBe('quiz');
+
     // Check Science 202 Course grouping
     expect(result['Science 202']).toBeDefined();
-    
+    expect(result['Science 202'][0].eventType).toBe('event');
+
     // Check Unknown Course grouping fallback
     expect(result['Unknown Course']).toBeDefined();
     expect(result['Unknown Course'][0].summary).toBe('Personal Event');
+    expect(result['Unknown Course'][0].eventType).toBe('event');
+  });
+
+  it('should classify assignment events correctly', async () => {
+    const mockIcalData = {
+      'event-assign': {
+        type: 'VEVENT',
+        uid: 'event-assign',
+        summary: 'Submit Assignment: Problem Set 1 [CS 201]',
+        start: new Date('2026-04-10T23:59:00Z'),
+        end: new Date('2026-04-10T23:59:00Z'),
+        description: 'Problem set submission',
+      },
+    };
+
+    (ical.async.fromURL as jest.Mock).mockResolvedValue(mockIcalData);
+
+    const testUrl = 'https://canvas.example.edu/feeds/calendars/user_xxxxx.ics';
+    const result = await parseCanvasFeed(testUrl);
+
+    expect(result['CS 201']).toBeDefined();
+    expect(result['CS 201'][0].eventType).toBe('assignment');
   });
 
   it('should throw an error if the URL is invalid', async () => {

@@ -56,7 +56,7 @@ function pruneOldJobs() {
   }
 }
 
-async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string) {
+async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, typeGroupingEnabled: boolean) {
   const job = syncJobs.get(jobId);
   if (!job) return;
 
@@ -86,7 +86,8 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string) {
         } else {
           job.progress.push(progress);
         }
-      }
+      },
+      typeGroupingEnabled  // ← pass user's type grouping preference
     );
 
     // Step 5: Mirror school calendars
@@ -155,7 +156,7 @@ export async function POST() {
   // Use after() to run sync after response is sent — ensures background sync
   // completes on Vercel (void promise would be killed when response closes).
   // Errors are caught inside runSyncJob and recorded in job state.
-  after(runSyncJob(jobId, userId, user.canvasIcsUrl));
+  after(runSyncJob(jobId, userId, user.canvasIcsUrl, user.typeGroupingEnabled ?? false));
 
   return NextResponse.json({ jobId }, { status: 202 });
 }

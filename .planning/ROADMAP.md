@@ -80,7 +80,7 @@ Phases execute in numeric order: 1 → 2 → 3
 **Goal:** Users can opt in to type-based sub-calendar grouping so Canvas events are organized into per-(course, type) calendars (Assignments, Quizzes, Discussions, Events) instead of one calendar per course
 **Requirements**: GROUP-01, GROUP-02, GROUP-03, GROUP-04, GROUP-05, GROUP-06
 **Depends on:** Phase 3
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — eventTypeClassifier service (TDD) + DB schema extension (courseTypeCalendars table, users.typeGroupingEnabled)

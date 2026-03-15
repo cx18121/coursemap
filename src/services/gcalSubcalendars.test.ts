@@ -69,7 +69,10 @@ import { ensureTypeSubCalendar } from './gcalSubcalendars';
 import { calendar_v3 } from 'googleapis';
 
 describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
-  const FAKE_CALENDAR = {} as calendar_v3.Calendar;
+  const FAKE_CALENDAR = {
+    calendars: { insert: mockCalendarsInsert },
+    calendarList: { patch: mockCalendarListPatch },
+  } as unknown as calendar_v3.Calendar;
   const USER_ID = 42;
 
   beforeEach(() => {

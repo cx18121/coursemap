@@ -1,4 +1,5 @@
 import ical, { CalendarComponent, VEvent } from 'node-ical';
+import { classifyEventType, CanvasEventType } from './eventTypeClassifier';
 
 export interface CanvasEvent {
   summary: string;
@@ -7,6 +8,7 @@ export interface CanvasEvent {
   end: Date;
   courseName: string;
   uid: string;
+  eventType: CanvasEventType;
 }
 
 export type GroupedEvents = Record<string, CanvasEvent[]>;
@@ -70,6 +72,7 @@ export async function parseCanvasFeed(feedUrl: string): Promise<GroupedEvents> {
           end: ev.end as Date,
           courseName,
           uid: ev.uid ? String(ev.uid) : k,
+          eventType: classifyEventType(summary),
         };
 
         if (!groupedEvents[courseName]) {

@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { parseCanvasFeed } from '@/services/icalParser';
 import { filterEventsForSync } from '@/services/syncFilter';
 import { assignCourseColors } from '@/services/colorAssignment';
-import { syncCanvasEvents, type SyncProgress, type SyncSummary } from '@/services/gcalSync';
+import { syncCanvasEvents, type SyncProgress, type SyncSummary, type EnabledEventTypes } from '@/services/gcalSync';
 import { mirrorSchoolCalendars, type MirrorSummary } from '@/services/schoolMirror';
 
 export interface SyncJobState {
@@ -56,7 +56,7 @@ function pruneOldJobs() {
   }
 }
 
-async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, typeGroupingEnabled: boolean) {
+async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, enabledEventTypes: EnabledEventTypes) {
   const job = syncJobs.get(jobId);
   if (!job) return;
 
@@ -87,7 +87,7 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, t
           job.progress.push(progress);
         }
       },
-      typeGroupingEnabled  // ← pass user's type grouping preference
+      enabledEventTypes  // ← pass per-type sync filters
     );
 
     // Step 5: Mirror school calendars
@@ -156,7 +156,14 @@ export async function POST() {
   // Use after() to run sync after response is sent — ensures background sync
   // completes on Vercel (void promise would be killed when response closes).
   // Errors are caught inside runSyncJob and recorded in job state.
-  after(runSyncJob(jobId, userId, user.canvasIcsUrl, user.typeGroupingEnabled ?? false));
+  const enabledEventTypes: EnabledEventTypes = {
+    syncAssignments: user.syncAssignments ?? true,
+    syncQuizzes: user.syncQuizzes ?? true,
+    syncDiscussions: user.syncDiscussions ?? true,
+    syncEvents: user.syncEvents ?? true,
+  };
+
+  after(runSyncJob(jobId, userId, user.canvasIcsUrl, enabledEventTypes));
 
   return NextResponse.json({ jobId }, { status: 202 });
 }

@@ -18,16 +18,22 @@ export async function GET() {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
   return NextResponse.json({
-    typeGroupingEnabled: user.typeGroupingEnabled ?? false,
+    syncAssignments: user.syncAssignments ?? true,
+    syncQuizzes: user.syncQuizzes ?? true,
+    syncDiscussions: user.syncDiscussions ?? true,
+    syncEvents: user.syncEvents ?? true,
   });
 }
 
 interface UserSettingsBody {
-  typeGroupingEnabled?: boolean;
+  syncAssignments?: boolean;
+  syncQuizzes?: boolean;
+  syncDiscussions?: boolean;
+  syncEvents?: boolean;
 }
 
 // PATCH /api/user-settings
-// Accepts { typeGroupingEnabled: boolean } and persists to users table
+// Accepts per-type sync toggles and persists to users table
 export async function PATCH(req: Request) {
   const session = await getSession();
   if (!session) {
@@ -41,16 +47,40 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (body.typeGroupingEnabled === undefined || typeof body.typeGroupingEnabled !== 'boolean') {
-    return NextResponse.json(
-      { error: 'typeGroupingEnabled must be a boolean' },
-      { status: 400 }
-    );
+  const updates: Partial<typeof users.$inferInsert> = {};
+
+  if (body.syncAssignments !== undefined) {
+    if (typeof body.syncAssignments !== 'boolean') {
+      return NextResponse.json({ error: 'syncAssignments must be a boolean' }, { status: 400 });
+    }
+    updates.syncAssignments = body.syncAssignments;
+  }
+  if (body.syncQuizzes !== undefined) {
+    if (typeof body.syncQuizzes !== 'boolean') {
+      return NextResponse.json({ error: 'syncQuizzes must be a boolean' }, { status: 400 });
+    }
+    updates.syncQuizzes = body.syncQuizzes;
+  }
+  if (body.syncDiscussions !== undefined) {
+    if (typeof body.syncDiscussions !== 'boolean') {
+      return NextResponse.json({ error: 'syncDiscussions must be a boolean' }, { status: 400 });
+    }
+    updates.syncDiscussions = body.syncDiscussions;
+  }
+  if (body.syncEvents !== undefined) {
+    if (typeof body.syncEvents !== 'boolean') {
+      return NextResponse.json({ error: 'syncEvents must be a boolean' }, { status: 400 });
+    }
+    updates.syncEvents = body.syncEvents;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
   }
 
   await db
     .update(users)
-    .set({ typeGroupingEnabled: body.typeGroupingEnabled })
+    .set(updates)
     .where(eq(users.id, session.userId));
 
   return NextResponse.json({ success: true });

@@ -1,6 +1,9 @@
 /**
- * Tests for gcalSync.ts — bulk dedup and per-course sub-calendar sync
+ * Tests for gcalSync.ts — type-grouped sub-calendar sync with per-type filtering
  * Uses mocked googleapis and drizzle to avoid real API calls
+ *
+ * Design: type grouping is ALWAYS ON. Events route to per-(course, type) sub-calendars.
+ * Per-type filters skip events of disabled types.
  */
 
 // Mock googleapis before importing anything that uses it
@@ -42,7 +45,7 @@ jest.mock('@/lib/tokens', () => ({
 // Mock @/lib/db
 const mockDb = {
   query: {
-    courseSelections: {
+    courseTypeCalendars: {
       findFirst: jest.fn(),
     },
   },
@@ -64,31 +67,37 @@ jest.mock('drizzle-orm', () => ({
 
 // Mock schema
 jest.mock('@/lib/db/schema', () => ({
-  courseSelections: { userId: 'userId', courseName: 'courseName', gcalCalendarId: 'gcalCalendarId' },
+  courseTypeCalendars: {
+    userId: 'userId',
+    courseName: 'courseName',
+    eventType: 'eventType',
+    gcalCalendarId: 'gcalCalendarId',
+  },
 }));
 
-import { syncCanvasEvents, SyncProgress, SyncSummary } from './gcalSync';
+import { syncCanvasEvents, SyncProgress } from './gcalSync';
 import { CanvasEvent } from './icalParser';
 
-describe('gcalSync - bulk dedup and sub-calendar sync', () => {
+describe('gcalSync - type-grouped sync with per-type filters', () => {
   const FAKE_TOKEN = 'fake-access-token';
   const USER_ID = 42;
 
   const makeEvent = (overrides: Partial<CanvasEvent> = {}): CanvasEvent => ({
-    summary: 'Assignment 1',
+    summary: 'Submit Assignment: HW1',
     description: 'Do the thing',
     start: new Date('2026-04-01T10:00:00Z'),
     end: new Date('2026-04-01T11:00:00Z'),
     courseName: 'Math 101',
     uid: 'uid-1',
+    eventType: 'assignment',
     ...overrides,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetFreshAccessToken.mockResolvedValue(FAKE_TOKEN);
-    // Default: no existing sub-calendar in DB
-    mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
+    // Default: no existing type sub-calendar in DB
+    mockDb.query.courseTypeCalendars.findFirst.mockResolvedValue(null);
     // Default: calendars.insert returns a new calendar
     mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id-123' } });
     // Default: calendarList.patch succeeds (sets sub-calendar color)
@@ -154,30 +163,31 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
       expect(summary.skipped).toBe(0);
     });
 
-    it('uses a single events.list call per course (bulk fetch)', async () => {
+    it('uses a single events.list call per type bucket per course (bulk fetch)', async () => {
+      // 3 events of same type in same course → 1 events.list call
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'Math 101' }),
-        makeEvent({ uid: 'uid-2', courseName: 'Math 101' }),
-        makeEvent({ uid: 'uid-3', courseName: 'Math 101' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-3', courseName: 'Math 101', eventType: 'assignment' }),
       ];
       mockEventsList.mockResolvedValue({ data: { items: [] } });
 
       await syncCanvasEvents(USER_ID, events, {});
 
-      // Should call events.list only ONCE for all Math 101 events (bulk dedup)
+      // 1 type bucket → 1 events.list call
       expect(mockEventsList).toHaveBeenCalledTimes(1);
-      // But insert should be called for each new event
+      // 3 new events → 3 inserts
       expect(mockEventsInsert).toHaveBeenCalledTimes(3);
     });
 
     it('updates changed events (summary differs)', async () => {
-      const event = makeEvent({ uid: 'uid-changed', summary: 'New Title' });
+      const event = makeEvent({ uid: 'uid-changed', summary: 'Submit Assignment: New Title' });
       mockEventsList.mockResolvedValue({
         data: {
           items: [
             {
               id: 'gcal-event-id',
-              summary: 'Old Title', // different from incoming
+              summary: 'Submit Assignment: Old Title', // different from incoming
               start: { dateTime: event.start.toISOString() },
               end: { dateTime: event.end.toISOString() },
               description: event.description,
@@ -223,10 +233,10 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
     });
   });
 
-  describe('sub-calendar creation', () => {
-    it('creates a new sub-calendar if none exists in DB', async () => {
-      mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
-      mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id' } });
+  describe('type sub-calendar creation', () => {
+    it('creates a new type sub-calendar if none exists in DB', async () => {
+      mockDb.query.courseTypeCalendars.findFirst.mockResolvedValue(null);
+      mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-type-cal-id' } });
 
       await syncCanvasEvents(USER_ID, [makeEvent()], {});
 
@@ -234,62 +244,138 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
           requestBody: expect.objectContaining({
-            summary: 'Canvas - Math 101',
+            summary: 'Canvas - Math 101 — Assignments',
           }),
         })
       );
     });
 
-    it('reuses existing sub-calendar from DB (no API call)', async () => {
-      mockDb.query.courseSelections.findFirst.mockResolvedValue({
-        gcalCalendarId: 'existing-cal-id',
+    it('reuses existing type sub-calendar from DB (no API call)', async () => {
+      mockDb.query.courseTypeCalendars.findFirst.mockResolvedValue({
+        gcalCalendarId: 'existing-type-cal-id',
       });
 
       await syncCanvasEvents(USER_ID, [makeEvent()], {});
 
       expect(mockCalendarsInsert).not.toHaveBeenCalled();
-      // Events should be listed on the existing calendar
       expect(mockEventsList).toHaveBeenCalledWith(
-        expect.objectContaining({ calendarId: 'existing-cal-id' })
+        expect.objectContaining({ calendarId: 'existing-type-cal-id' })
       );
     });
 
-    it('stores newly created sub-calendar ID in DB', async () => {
-      mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
-      mockCalendarsInsert.mockResolvedValue({ data: { id: 'brand-new-cal' } });
+    it('stores newly created type sub-calendar ID in DB', async () => {
+      mockDb.query.courseTypeCalendars.findFirst.mockResolvedValue(null);
+      mockCalendarsInsert.mockResolvedValue({ data: { id: 'brand-new-type-cal' } });
 
       await syncCanvasEvents(USER_ID, [makeEvent()], {});
 
-      expect(mockDb.update).toHaveBeenCalled();
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
-    it('uses one sub-calendar per course, not one per event', async () => {
+    it('creates separate sub-calendars for different event types in same course', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'CS 201' }),
-        makeEvent({ uid: 'uid-2', courseName: 'CS 201' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'quiz' }),
       ];
-      mockCalendarsInsert.mockResolvedValue({ data: { id: 'cs-cal-id' } });
+      mockCalendarsInsert
+        .mockResolvedValueOnce({ data: { id: 'assignment-cal-id' } })
+        .mockResolvedValueOnce({ data: { id: 'quiz-cal-id' } });
 
       await syncCanvasEvents(USER_ID, events, {});
 
-      expect(mockCalendarsInsert).toHaveBeenCalledTimes(1);
+      // 2 type buckets → 2 sub-calendar creations
+      expect(mockCalendarsInsert).toHaveBeenCalledTimes(2);
+      expect(mockEventsInsert).toHaveBeenCalledTimes(2);
     });
 
     it('creates separate sub-calendars for different courses', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'Math 101' }),
-        makeEvent({ uid: 'uid-2', courseName: 'CS 201' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', courseName: 'CS 201', eventType: 'assignment' }),
       ];
-      mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
       mockCalendarsInsert
-        .mockResolvedValueOnce({ data: { id: 'math-cal-id' } })
-        .mockResolvedValueOnce({ data: { id: 'cs-cal-id' } });
+        .mockResolvedValueOnce({ data: { id: 'math-assignment-cal-id' } })
+        .mockResolvedValueOnce({ data: { id: 'cs-assignment-cal-id' } });
       mockEventsList.mockResolvedValue({ data: { items: [] } });
 
       await syncCanvasEvents(USER_ID, events, {});
 
       expect(mockCalendarsInsert).toHaveBeenCalledTimes(2);
       expect(mockEventsInsert).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('per-type filtering', () => {
+    it('skips events whose type is disabled', async () => {
+      const events = [
+        makeEvent({ uid: 'uid-assign', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-quiz', eventType: 'quiz' }),
+      ];
+
+      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
+        syncAssignments: true,
+        syncQuizzes: false,
+        syncDiscussions: true,
+        syncEvents: true,
+      });
+
+      // Only assignment should be synced
+      expect(summary.inserted).toBe(1);
+      // Quiz type sub-calendar should NOT be created
+      expect(mockCalendarsInsert).toHaveBeenCalledTimes(1);
+      expect(mockCalendarsInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: expect.objectContaining({ summary: 'Canvas - Math 101 — Assignments' }),
+        })
+      );
+    });
+
+    it('skips all events when all types disabled', async () => {
+      const events = [
+        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', eventType: 'quiz' }),
+      ];
+
+      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
+        syncAssignments: false,
+        syncQuizzes: false,
+        syncDiscussions: false,
+        syncEvents: false,
+      });
+
+      expect(summary.inserted).toBe(0);
+      expect(mockCalendarsInsert).not.toHaveBeenCalled();
+    });
+
+    it('groups announcements under syncEvents toggle', async () => {
+      const events = [
+        makeEvent({ uid: 'uid-ann', eventType: 'announcement' }),
+      ];
+
+      // syncEvents = false → announcements skipped
+      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
+        syncAssignments: true,
+        syncQuizzes: true,
+        syncDiscussions: true,
+        syncEvents: false,
+      });
+
+      expect(summary.inserted).toBe(0);
+      expect(mockCalendarsInsert).not.toHaveBeenCalled();
+    });
+
+    it('syncs all types when enabledEventTypes is omitted (default all enabled)', async () => {
+      const events = [
+        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', eventType: 'quiz' }),
+      ];
+      mockCalendarsInsert
+        .mockResolvedValueOnce({ data: { id: 'cal-1' } })
+        .mockResolvedValueOnce({ data: { id: 'cal-2' } });
+
+      const summary = await syncCanvasEvents(USER_ID, events, {});
+
+      expect(summary.inserted).toBe(2);
     });
   });
 
@@ -326,21 +412,20 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
   });
 
   describe('SyncSummary counts', () => {
-    it('returns accurate counts across multiple courses', async () => {
-      // Math 101: 1 new, 1 existing (skip), 1 changed (update)
-      // CS 201: 2 new
+    it('returns accurate counts across multiple types and courses', async () => {
+      // Math 101 assignments: 1 new, 1 existing (skip), 1 changed (update)
+      // CS 201 assignments: 2 new
       const events = [
-        makeEvent({ uid: 'math-new', courseName: 'Math 101' }),
-        makeEvent({ uid: 'math-existing', courseName: 'Math 101' }),
-        makeEvent({ uid: 'math-changed', summary: 'New Title', courseName: 'Math 101' }),
-        makeEvent({ uid: 'cs-new-1', courseName: 'CS 201' }),
-        makeEvent({ uid: 'cs-new-2', courseName: 'CS 201' }),
+        makeEvent({ uid: 'math-new', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'math-existing', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'math-changed', summary: 'Submit Assignment: New Title', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'cs-new-1', courseName: 'CS 201', eventType: 'assignment' }),
+        makeEvent({ uid: 'cs-new-2', courseName: 'CS 201', eventType: 'assignment' }),
       ];
 
-      mockDb.query.courseSelections.findFirst.mockResolvedValue(null);
       mockCalendarsInsert
-        .mockResolvedValueOnce({ data: { id: 'math-cal' } })
-        .mockResolvedValueOnce({ data: { id: 'cs-cal' } });
+        .mockResolvedValueOnce({ data: { id: 'math-assignment-cal' } })
+        .mockResolvedValueOnce({ data: { id: 'cs-assignment-cal' } });
 
       mockEventsList
         .mockResolvedValueOnce({
@@ -356,7 +441,7 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
               },
               {
                 id: 'gcal-changed',
-                summary: 'Old Title',
+                summary: 'Submit Assignment: Old Title',
                 start: { dateTime: makeEvent({ uid: 'math-changed' }).start.toISOString() },
                 end: { dateTime: makeEvent({ uid: 'math-changed' }).end.toISOString() },
                 description: makeEvent({ uid: 'math-changed' }).description,
@@ -394,9 +479,9 @@ describe('gcalSync - bulk dedup and sub-calendar sync', () => {
   describe('onProgress callback', () => {
     it('calls onProgress for each event processed', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1' }),
-        makeEvent({ uid: 'uid-2' }),
-        makeEvent({ uid: 'uid-3' }),
+        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-2', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-3', eventType: 'assignment' }),
       ];
       mockCalendarsInsert.mockResolvedValue({ data: { id: 'cal-id' } });
 

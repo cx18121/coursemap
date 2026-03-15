@@ -14,7 +14,11 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   canvasIcsUrl: text("canvas_ics_url"), // Phase 1: wizard step 3
-  typeGroupingEnabled: boolean('type_grouping_enabled').notNull().default(false),
+  // Phase 4: per-event-type sync filters (all default enabled)
+  syncAssignments: boolean('sync_assignments').notNull().default(true),
+  syncQuizzes: boolean('sync_quizzes').notNull().default(true),
+  syncDiscussions: boolean('sync_discussions').notNull().default(true),
+  syncEvents: boolean('sync_events').notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .defaultNow(),
@@ -126,7 +130,7 @@ export const schoolCalendarSelections = pgTable(
 );
 
 // Per-(course, event-type) sub-calendar mapping — one GCal sub-calendar per course+type combination
-// Created on demand when typeGroupingEnabled=true on first sync for that (userId, courseName, eventType) triple
+// Created on demand at first sync for a given (userId, courseName, eventType) triple
 export const courseTypeCalendars = pgTable(
   'course_type_calendars',
   {

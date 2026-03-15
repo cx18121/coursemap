@@ -5,7 +5,7 @@ import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
 import SyncSummary from './SyncSummary';
-import TypeGroupingToggle from './TypeGroupingToggle';
+import TypeGroupingToggle, { EventTypeSettings } from './TypeGroupingToggle';
 
 // ---- Types ---------------------------------------------------------------
 
@@ -54,12 +54,12 @@ interface SyncDashboardProps {
   userName: string;
   hasCanvasUrl: boolean;
   hasSchoolAccount: boolean;
-  initialTypeGroupingEnabled: boolean;
+  initialEventTypeSettings: EventTypeSettings;
 }
 
 // ---- Component -----------------------------------------------------------
 
-export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount, initialTypeGroupingEnabled }: SyncDashboardProps) {
+export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount, initialEventTypeSettings }: SyncDashboardProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,8 +72,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
-  const [typeGroupingEnabled, setTypeGroupingEnabled] = useState<boolean>(initialTypeGroupingEnabled);
-  const [showFirstEnableNote, setShowFirstEnableNote] = useState(false);
+  const [eventTypeSettings, setEventTypeSettings] = useState<EventTypeSettings>(initialEventTypeSettings);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -193,22 +192,19 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     }).catch(console.error);
   }, []);
 
-  const handleToggleTypeGrouping = useCallback(async (enabled: boolean) => {
-    const previous = typeGroupingEnabled;
-    setTypeGroupingEnabled(enabled);
-    if (enabled && !previous) {
-      setShowFirstEnableNote(true);
-    }
+  const handleToggleEventType = useCallback(async (key: keyof EventTypeSettings, enabled: boolean) => {
+    const previousSettings = eventTypeSettings;
+    setEventTypeSettings((prev) => ({ ...prev, [key]: enabled }));
     clearSummary();
     await fetch('/api/user-settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ typeGroupingEnabled: enabled }),
+      body: JSON.stringify({ [key]: enabled }),
     }).catch(() => {
       // Silent revert on failure — matches existing course toggle pattern
-      setTypeGroupingEnabled(previous);
+      setEventTypeSettings(previousSettings);
     });
-  }, [typeGroupingEnabled]);
+  }, [eventTypeSettings]);
 
   const handleToggleSchoolCalendar = useCallback(
     async (calendarId: string, calendarName: string, enabled: boolean) => {
@@ -332,19 +328,12 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           </div>
         )}
 
-        {/* Type grouping toggle — only when courses are loaded */}
+        {/* Event type filter — only when courses are loaded */}
         {!isLoading && hasCanvasUrl && courses.length > 0 && (
-          <div className="space-y-2">
-            <TypeGroupingToggle
-              enabled={typeGroupingEnabled}
-              onToggle={handleToggleTypeGrouping}
-            />
-            {showFirstEnableNote && typeGroupingEnabled && (
-              <p role="note" className="text-xs text-[--color-text-secondary] px-1">
-                Existing &apos;Canvas - CourseName&apos; calendars remain in Google Calendar. New type sub-calendars will be created on next sync.
-              </p>
-            )}
-          </div>
+          <TypeGroupingToggle
+            settings={eventTypeSettings}
+            onToggle={handleToggleEventType}
+          />
         )}
 
         {/* Canvas courses section */}

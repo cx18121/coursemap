@@ -14,11 +14,6 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   canvasIcsUrl: text("canvas_ics_url"), // Phase 1: wizard step 3
-  // Phase 4: per-event-type sync filters (all default enabled)
-  syncAssignments: boolean('sync_assignments').notNull().default(true),
-  syncQuizzes: boolean('sync_quizzes').notNull().default(true),
-  syncDiscussions: boolean('sync_discussions').notNull().default(true),
-  syncEvents: boolean('sync_events').notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .defaultNow(),
@@ -139,10 +134,42 @@ export const courseTypeCalendars = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     courseName: text('course_name').notNull(),
-    eventType: text('event_type').notNull(), // 'assignment' | 'quiz' | 'discussion' | 'announcement' | 'event'
+    eventType: text('event_type').notNull(), // human-readable label e.g. 'Assignments', 'Quizzes', 'Lab Reports'
     gcalCalendarId: text('gcal_calendar_id').notNull(),
   },
   (t) => ({
     uniqueIdx: uniqueIndex('course_type_cal_idx').on(t.userId, t.courseName, t.eventType),
   })
 );
+
+// Per-(user, course, event-type) toggle — user can enable/disable each discovered event type per course
+// Rows are created on first sync when a new (course, type) pair is discovered; default enabled = true
+export const courseTypeSettings = pgTable(
+  'course_type_settings',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseName: text('course_name').notNull(),
+    eventType: text('event_type').notNull(), // human-readable label e.g. 'Assignments', 'Quizzes'
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    uniqueIdx: uniqueIndex('course_type_settings_idx').on(t.userId, t.courseName, t.eventType),
+  })
+);
+
+// AI classifier cache — caches event-name-to-category mappings to avoid redundant AI calls
+// Shared across all users; keyed on the raw event summary (or a normalized pattern)
+export const classifierCache = pgTable('classifier_cache', {
+  id: serial('id').primaryKey(),
+  eventNamePattern: text('event_name_pattern').notNull().unique(),
+  category: text('category').notNull(), // human-readable label e.g. 'Assignments', 'Lab Reports'
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+    .notNull()
+    .defaultNow(),
+});

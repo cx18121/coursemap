@@ -15,6 +15,13 @@
       "when": 1773613346431,
       "tag": "0001_sloppy_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773621763388,
+      "tag": "0002_fast_onslaught",
+      "breakpoints": true
     }
   ]
 }

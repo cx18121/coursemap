@@ -1,327 +1,426 @@
 # Architecture Research
 
-**Domain:** Canvas-to-Google-Calendar sync (multi-account OAuth, scheduled sync, calendar mirroring)
-**Researched:** 2026-03-11
-**Confidence:** HIGH (Vercel and Google OAuth official docs), MEDIUM (account-linking pattern), LOW (DB schema specifics)
+**Domain:** Canvas-to-Google-Calendar sync — v1.1 automation and visibility features
+**Researched:** 2026-03-16
+**Confidence:** HIGH (Vercel official docs, direct codebase inspection), MEDIUM (deduplication/conflict UI patterns)
 
 ## Standard Architecture
 
 ### System Overview
 
-The new milestone adds three structural concerns that don't exist in the current codebase:
-persistent state (tokens + preferences), a background worker (scheduled sync), and dual-client
-Google API access (read from school, write to personal). The existing three-layer architecture
-extends cleanly, but gains a database layer and a dedicated sync worker path.
+The four v1.1 features map onto three structural additions to the existing architecture:
+a new cron entry point, a `syncLog` DB table, and two new UI panels. The core sync pipeline
+(`parseCanvasFeed` → `filterEventsForSync` → `syncCanvasEvents` + `mirrorSchoolCalendars`) is
+unchanged — it is called from both the existing manual trigger and the new cron endpoint.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Browser (Client)                         │
-│  ┌──────────────────┐  ┌─────────────────┐  ┌────────────────┐  │
-│  │  AuthFlow UI     │  │  FilterSetup UI  │  │  SyncStatus UI │  │
-│  └────────┬─────────┘  └────────┬────────┘  └───────┬────────┘  │
-└───────────┼─────────────────────┼────────────────────┼──────────┘
-            │  HTTP               │  HTTP               │  HTTP
-┌───────────┼─────────────────────┼────────────────────┼──────────┐
-│           │    Next.js App Router (Server)             │          │
-│  ┌────────▼──────┐  ┌──────────▼──────┐  ┌───────────▼──────┐  │
-│  │ /api/auth/    │  │ /api/preferences │  │ /api/sync        │  │
-│  │ [...nextauth] │  │ (GET/POST)       │  │ (POST, manual)   │  │
-│  └────────┬──────┘  └──────────┬──────┘  └───────────┬──────┘  │
-│           │                    │                       │          │
-│  ┌────────▼────────────────────▼───────────────────────▼──────┐  │
-│  │                        Service Layer                        │  │
-│  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐  │  │
-│  │  │ tokenStore  │  │ filterEngine │  │   syncOrchestra  │  │  │
-│  │  │  .ts        │  │  .ts         │  │   tor.ts         │  │  │
-│  │  └──────┬──────┘  └──────┬───────┘  └────────┬─────────┘  │  │
-│  └─────────┼────────────────┼────────────────────┼────────────┘  │
-│            │                │                    │               │
-│  ┌─────────▼────────────────▼────────────────────▼────────────┐  │
-│  │                      Database (Neon Postgres)                │  │
-│  │  users | accounts (tokens) | preferences | sync_log         │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │              Vercel Cron  →  /api/cron/sync                │  │
-│  │  (triggers syncOrchestrator for all active users)          │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────────────────┘
-            │                                    │
-     ┌──────▼──────┐                    ┌────────▼────────┐
-     │ Canvas ICS  │                    │  Google Calendar │
-     │ feed (HTTP) │                    │  API (two OAuth  │
-     └─────────────┘                    │  clients)        │
-                                        └─────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Browser (Client)                            │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                   SyncDashboard (existing)                     │  │
+│  │  ┌─────────────────┐  ┌──────────────────┐  ┌──────────────┐  │  │
+│  │  │  CountdownPanel │  │ DedupePanel (NEW) │  │ ConflictPanel│  │  │
+│  │  │  (NEW)          │  │                  │  │ (NEW)        │  │  │
+│  │  └────────┬────────┘  └────────┬─────────┘  └──────┬───────┘  │  │
+│  └───────────┼────────────────────┼────────────────────┼──────────┘  │
+└──────────────┼────────────────────┼────────────────────┼─────────────┘
+               │  HTTP              │  HTTP               │  HTTP
+┌──────────────┼────────────────────┼────────────────────┼─────────────┐
+│         Next.js App Router (Server)                                   │
+│                                                                      │
+│  ┌────────────────┐  ┌─────────────┐  ┌────────────────────────┐    │
+│  │ /api/cron/sync │  │ /api/sync   │  │ /api/sync/preview      │    │
+│  │ (NEW — GET,    │  │ (existing   │  │ (NEW — dry-run dedup   │    │
+│  │  CRON_SECRET)  │  │  POST)      │  │  + conflict detection) │    │
+│  └───────┬────────┘  └──────┬──────┘  └────────────┬───────────┘    │
+│          │                  │                       │               │
+│  ┌───────▼──────────────────▼───────────────────────▼────────────┐  │
+│  │                      Sync Pipeline (existing, shared)          │  │
+│  │  parseCanvasFeed → filterEventsForSync → syncCanvasEvents      │  │
+│  │                                        + mirrorSchoolCalendars │  │
+│  └───────────────────────────────────────────┬────────────────────┘  │
+│                                              │                       │
+│  ┌───────────────────────────────────────────▼────────────────────┐  │
+│  │                 Database (Neon Postgres + Drizzle)              │  │
+│  │  users | oauthTokens | courseSelections | eventOverrides        │  │
+│  │  courseTypeCalendars | courseTypeSettings | classifierCache     │  │
+│  │  schoolCalendarSelections | eventTitleCache                     │  │
+│  │  syncLog (NEW) | syncConflicts (NEW)                           │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │       vercel.json: crons → GET /api/cron/sync (daily)         │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Talks To |
-|-----------|----------------|----------|
-| AuthFlow UI | Initiates OAuth sign-in for personal and school accounts, displays linked-account status | `/api/auth/[...nextauth]` |
-| FilterSetup UI | Displays parsed courses, lets user toggle courses/events on/off, saves preferences | `/api/parse-ics`, `/api/preferences` |
-| SyncStatus UI | Shows last sync time, result counts, manual trigger button | `/api/sync` |
-| `/api/auth/[...nextauth]` | NextAuth route: handles OAuth callbacks, stores refresh tokens via database adapter | Auth.js (NextAuth v5), DB |
-| `/api/preferences` | CRUD for per-user filter settings and Canvas feed URL | `filterEngine`, DB |
-| `/api/sync` (manual) | Accepts POST to trigger immediate sync for authenticated user | `syncOrchestrator` |
-| `/api/cron/sync` | Secured GET endpoint invoked by Vercel cron; triggers sync for all users with active tokens | `syncOrchestrator` |
-| `tokenStore.ts` | Retrieves and refreshes OAuth tokens for both Google accounts; wraps Auth.js account records | DB, Google OAuth endpoints |
-| `filterEngine.ts` | Applies course/event filter rules to a list of parsed Canvas events | DB (preferences), `icalParser` |
-| `syncOrchestrator.ts` | Coordinates a full sync cycle: parse ICS → filter → mirror school → write to personal | `icalParser`, `gcalSync`, `tokenStore`, `filterEngine` |
-| `icalParser.ts` | Existing: fetches + parses Canvas ICS feed, groups events by course | (no change) |
-| `gcalSync.ts` | Existing: deduplicates and upserts events to Google Calendar; needs dual-client extension | Google Calendar API |
-| Database (Neon Postgres) | Stores users, OAuth tokens (encrypted at rest via Auth.js), preferences, sync run log | All server services |
-| Vercel Cron | Time-based trigger (once daily on Hobby, up to per-minute on Pro); calls `/api/cron/sync` via HTTP GET with Bearer secret | `/api/cron/sync` |
+| Component | Responsibility | New or Modified |
+|-----------|---------------|-----------------|
+| `/api/cron/sync` | Vercel cron entry point — queries all users with valid tokens, runs per-user sync, writes syncLog row | **NEW** |
+| `/api/sync` (existing) | Manual sync trigger — unchanged except: writes syncLog row after completion | **MODIFIED** (add syncLog write) |
+| `/api/sync/preview` | Dry-run endpoint — parses ICS + fetches existing GCal events, returns diff without writing; powers dedup + conflict panels | **NEW** |
+| `SyncDashboard` | Existing dashboard wrapper — adds CountdownPanel, DedupePanel, ConflictPanel as collapsible sections | **MODIFIED** (adds panels) |
+| `CountdownPanel` | Client component — reads parsed ICS events (from `/api/parse-ics`), computes days-until-due for upcoming assignments, renders sorted list | **NEW** |
+| `DedupePanel` | Client component — calls `/api/sync/preview`, renders "already synced" vs "will be added" counts with per-event detail | **NEW** |
+| `ConflictPanel` | Client component — reads conflict rows from `/api/sync/preview`, lets user choose "keep Canvas version" / "keep GCal version" / "skip" per conflict | **NEW** |
+| `syncLog` table | One row per sync run (cron or manual) — stores userId, triggeredBy, startedAt, completedAt, insertedCount, updatedCount, skippedCount, failedCount, errors | **NEW** |
+| `syncConflicts` table | Rows for detected conflicts — canvas event UID + gcal event id + field diffs; resolved by user or auto-resolved on next sync | **NEW** |
+| `runSyncJob` (in `/api/sync/route.ts`) | Existing shared sync function — no body changes needed; wrap call site to write syncLog on completion | **MODIFIED** (thin wrapper) |
 
 ## Recommended Project Structure
+
+New and modified files only (relative to current `src/`):
 
 ```
 src/
 ├── app/
-│   ├── api/
-│   │   ├── auth/
-│   │   │   └── [...nextauth]/
-│   │   │       └── route.ts        # Auth.js handler
-│   │   ├── preferences/
-│   │   │   └── route.ts            # GET + POST filter settings
-│   │   ├── sync/
-│   │   │   └── route.ts            # POST: manual sync trigger
-│   │   ├── cron/
-│   │   │   └── sync/
-│   │   │       └── route.ts        # GET: Vercel cron endpoint
-│   │   ├── parse-ics/
-│   │   │   └── route.ts            # Existing (no change)
-│   │   └── sync-gcal/
-│   │       └── route.ts            # Existing (will be superseded)
-│   ├── page.tsx                    # Existing
-│   └── layout.tsx                  # Existing
+│   └── api/
+│       ├── cron/
+│       │   └── sync/
+│       │       └── route.ts        # NEW — cron entry point, CRON_SECRET check, all-user loop
+│       └── sync/
+│           ├── route.ts            # MODIFIED — add syncLog.write() after runSyncJob completes
+│           ├── preview/
+│           │   └── route.ts        # NEW — dry-run: parse + diff, no GCal writes
+│           └── status/
+│               └── route.ts        # existing — unchanged
 ├── components/
-│   ├── CalendarSetup.tsx           # Existing (refactor to multi-step)
-│   ├── AccountLinkStatus.tsx       # New: shows which accounts are linked
-│   └── SyncStatus.tsx              # New: last sync, manual trigger
+│   ├── SyncDashboard.tsx           # MODIFIED — add CountdownPanel, DedupePanel, ConflictPanel
+│   ├── CountdownPanel.tsx          # NEW — deadline countdown UI
+│   ├── DedupePanel.tsx             # NEW — shows already-synced vs pending events
+│   └── ConflictPanel.tsx           # NEW — conflict review and resolution UI
 ├── services/
-│   ├── icalParser.ts               # Existing (no change)
-│   ├── gcalSync.ts                 # Existing (extend to accept two clients)
-│   ├── tokenStore.ts               # New: retrieve + refresh OAuth tokens
-│   ├── filterEngine.ts             # New: apply course/event filter rules
-│   └── syncOrchestrator.ts         # New: coordinates a full sync cycle
-├── lib/
-│   ├── auth.ts                     # Auth.js config (providers, adapter, callbacks)
-│   └── db.ts                       # Neon serverless client + Drizzle instance
-└── db/
-    └── schema.ts                   # Drizzle schema: users, accounts, preferences, sync_log
+│   └── syncLog.ts                  # NEW — writeSyncLog(userId, triggeredBy, summary) helper
+└── lib/
+    └── db/
+        └── schema.ts               # MODIFIED — add syncLog and syncConflicts tables
 ```
 
 ### Structure Rationale
 
-- **`services/`**: Contains domain logic. `syncOrchestrator.ts` is the main new addition — it owns the full sync cycle and is called by both the manual API route and the cron route, avoiding duplication.
-- **`lib/`**: Infrastructure wiring (DB client, Auth.js config). Kept separate from services so services stay testable without framework dependencies.
-- **`db/`**: Schema definitions separate from runtime code; Drizzle migrations live here.
-- **`app/api/cron/`**: Isolated from other API routes to make the security boundary explicit. The cron route must verify `CRON_SECRET`; no other route needs this.
+- **`/api/cron/sync/`**: Isolated from `/api/sync/` to keep the CRON_SECRET check in one explicit location. This also makes it trivial to add rate-limiting or per-user concurrency controls to cron runs only.
+- **`/api/sync/preview/`**: Nested under `/api/sync/` because it is conceptually part of the sync pipeline (same services, no writes). A sibling route keeps it co-located with its context.
+- **`services/syncLog.ts`**: Thin helper that both the manual route and the cron route call after a run. Avoids duplicating the DB insert in two places.
+- **New UI panels as separate components**: `CountdownPanel`, `DedupePanel`, `ConflictPanel` are each independently foldable and independently loadable. Keeping them as separate files (not inlined into `SyncDashboard`) makes each independently testable.
 
 ## Architectural Patterns
 
-### Pattern 1: OAuth Account Linking via NextAuth v5 + Database Adapter
+### Pattern 1: Vercel Cron → Secured Route Handler → Shared Sync Pipeline
 
-**What:** The user signs in once (establishing a session on their personal Google account), then initiates a second OAuth flow to link their school account. Auth.js stores both OAuth accounts in a shared `accounts` table, keyed to the same `userId`. The `tokenStore` service loads the correct account's `access_token` and `refresh_token` by `provider_account_id` or a stored label (`school` vs `personal`).
+**What:** `vercel.json` declares a `crons` entry pointing to `GET /api/cron/sync`. Vercel sends `Authorization: Bearer $CRON_SECRET` when it invokes the route. The route checks that header, then queries all users who have both personal and school tokens (or just a Canvas ICS URL), and calls the same `runSyncJob`-equivalent logic that the manual trigger uses.
 
-**When to use:** Any time one user needs to act on behalf of two separate OAuth identities. This is the standard approach for account-linking in Auth.js (NextAuth).
-
-**Trade-offs:**
-- Pro: Auth.js handles token encryption, rotation callbacks, and PKCE automatically.
-- Pro: Existing `/api/auth/[...nextauth]` route handles both accounts; no custom OAuth plumbing.
-- Con: Auth.js does not natively prompt a second sign-in for an already-authenticated user. The second sign-in must be triggered manually (custom endpoint that sets a `prompt=select_account` param on the Google authorize URL) and the `signIn` callback must detect a "link" intent rather than a new session.
-- Con: The `accounts` table needs a `label` column (`school` | `personal`) since both accounts use the same Google provider.
-
-**Implementation note:** Use `allowDangerousEmailAccountLinking: false` — the two accounts will have different email addresses (school vs personal), so automatic linking by email is wrong here. The link is intentional and UI-driven.
-
-### Pattern 2: Vercel Cron → Secured Route Handler → Sync Orchestrator
-
-**What:** `vercel.json` declares a `crons` entry pointing to `/api/cron/sync`. Vercel makes an HTTP GET to the production URL on schedule. The route verifies the `Authorization: Bearer $CRON_SECRET` header. On success, it calls `syncOrchestrator` for all users with valid stored tokens.
-
-**When to use:** All background work in a serverless (Vercel) environment. Node-cron and `setInterval` do not work — the process is destroyed after each request. This is the only supported pattern.
+**When to use:** All scheduled background work on Vercel. `node-cron` and `setInterval` do not survive serverless function teardown.
 
 **Trade-offs:**
-- Pro: Zero infrastructure beyond `vercel.json` + one API route; no external scheduler service needed.
-- Con: Hobby plan is limited to once per day (±59 min precision). Pro plan gets per-minute scheduling.
-- Con: Vercel may fire the same cron twice (event-driven delivery). The sync must be idempotent (it is, because `gcalSync.ts` already deduplicates via `canvasCanvasUid` extended property).
-- Con: Default Vercel Function max duration is 10s (Hobby) / 60s (Pro). A full sync for multiple users may exceed this; run per-user syncs in parallel with a concurrency limit, or fan out via separate POST requests.
+- Pro: Zero extra infrastructure; no external scheduler or queue needed.
+- Pro: Syncs are already idempotent (`canvasCanvasUid` dedup in `gcalSync.ts`) so double-firing is safe.
+- Con: Vercel Hobby cron fires once/day with up to 59-min jitter within the specified hour.
+- Con: Default Vercel Function timeout is 10s on Hobby, 60s on Pro. With many users or large feeds, this requires either `after()` for each user or a fan-out pattern. For the current user count (personal tool), serial processing with `after()` is sufficient.
 
-**Securing the endpoint:**
+**Security (HIGH confidence — official Vercel docs):**
+
 ```typescript
 // src/app/api/cron/sync/route.ts
-export function GET(request: NextRequest) {
-  const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+import type { NextRequest } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 });
   }
-  // call syncOrchestrator(allActiveUsers)
+  // ... sync all users
 }
 ```
 
-### Pattern 3: Dual-Client Google Calendar Mirroring
+**`vercel.json` entry:**
 
-**What:** The sync orchestrator creates two OAuth2 clients from `googleapis` — one initialized with the school account's tokens (scoped to `calendar.readonly`) and one with the personal account's tokens (scoped to `calendar.events`). It reads events from the school account's primary calendar, then writes them to the personal account's calendar via `gcalSync.ts`.
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
+```
 
-**When to use:** Any time events need to move between two Google accounts. Service accounts with domain-wide delegation are an alternative (for Google Workspace domains where the admin can grant access), but require admin action the user may not have. Two-user OAuth is the correct pattern for a personal tool where the user owns both accounts.
+### Pattern 2: All-User Query Without a Session
+
+**What:** The cron endpoint has no session. It must query users directly from the DB. The correct approach is to join users to oauthTokens and filter for users who have a personal token AND a Canvas ICS URL (or have a school token, depending on what sync types they use). Users with missing or expired tokens that cannot be refreshed are skipped silently.
+
+**When to use:** Any background job that needs to operate on behalf of multiple users.
 
 **Trade-offs:**
-- Pro: Works for any Google account (consumer or Workspace); no admin setup required.
-- Pro: Uses existing `gcalSync.ts` deduplication logic — just pass the personal-account client.
-- Con: Both tokens must be stored and kept refreshed. `tokenStore.ts` must check expiry and call the Google token endpoint before handing a client to the orchestrator.
-- Con: School accounts managed by an institution may have OAuth scope restrictions. If the school restricts third-party app access, the school OAuth flow will fail at authorization. This should be detected early and surfaced to the user.
+- Pro: Simple — no queue, no message broker, no external state.
+- Con: If the user count grows, this loop will exceed function duration limits. For now (personal-scale), it is fine.
 
-**Token refresh pattern:**
+**Query pattern:**
+
 ```typescript
-// src/services/tokenStore.ts
-async function getCalendarClient(userId: string, label: 'school' | 'personal') {
-  const account = await db.query.accounts.findFirst({
-    where: and(eq(accounts.userId, userId), eq(accounts.label, label))
-  });
-  const oauth2Client = new google.auth.OAuth2(/* credentials */);
-  oauth2Client.setCredentials({
-    access_token: account.access_token,
-    refresh_token: account.refresh_token,
-    expiry_date: account.expires_at * 1000,
-  });
-  // googleapis auto-refreshes if expiry_date is set and token is expired
-  return google.calendar({ version: 'v3', auth: oauth2Client });
-}
+// Fetch all users with a Canvas ICS URL configured
+const usersToSync = await db
+  .select({ id: users.id, canvasIcsUrl: users.canvasIcsUrl })
+  .from(users)
+  .where(isNotNull(users.canvasIcsUrl));
+// Then for each user, call getFreshAccessToken — it returns null if expired and unrefreshable,
+// which is the signal to skip that user gracefully.
 ```
+
+**Note:** `getFreshAccessToken` (in `tokens.ts`) already handles refresh — it decrypts the stored refresh token, calls the Google OAuth endpoint, updates the DB row, and returns the new access token. Returning `null` means the user must re-authenticate manually. The cron job should skip null-token users without failing.
+
+### Pattern 3: Deadline Countdown Reads from Parsed ICS (Not DB)
+
+**What:** The countdown panel calls the existing `/api/parse-ics` endpoint (which already runs `parseCanvasFeed` and returns structured `CanvasEvent[]` with `start` dates) and filters for events whose `start` date is in the future. It sorts by `start` ascending and renders days-until-due.
+
+**When to use:** Whenever you need real-time event data from the Canvas feed. The DB does not store the full event list — only user preferences and GCal calendar IDs. The ICS feed is the authoritative source for event content and dates.
+
+**Trade-offs:**
+- Pro: No new DB table. Reuses the existing `/api/parse-ics` parse-and-classify pipeline including the classifier cache, so repeated calls are fast.
+- Pro: Automatically shows newly-added Canvas events without waiting for a sync.
+- Con: Requires an HTTP fetch to Canvas ICS on every dashboard load. This is already happening today for the course list display, so no additional latency is introduced.
+- Con: Countdown is only as fresh as the Canvas ICS feed. Canvas typically has a propagation delay of minutes.
+
+**Data flow:** `SyncDashboard` already fetches `/api/parse-ics` on load and stores `courses` with their events. `CountdownPanel` receives this same `courses` prop and computes countdown client-side — no additional API call needed.
+
+### Pattern 4: Deduplication Dashboard Derived from a Dry-Run Diff
+
+**What:** A new `/api/sync/preview` GET endpoint runs the same parse → filter pipeline as the real sync, then fetches existing GCal events from each sub-calendar (same bulk-fetch pattern as `syncCanvasEvents`) without writing anything. It returns three lists: `toInsert`, `toUpdate`, `unchanged`. The `DedupePanel` renders these lists.
+
+**When to use:** Anytime you want to show the user what a sync would do before running it. This is the same diff logic already inside `syncCanvasEvents` — just extracted earlier in the call, before the actual insert/update calls.
+
+**Trade-offs:**
+- Pro: No new DB table needed. The "deduplicated" state is derived live from GCal.
+- Pro: Preview is always accurate — it reflects the current GCal state, not a stale snapshot.
+- Con: Makes real GCal API calls (read-only). Contributes to the Google API quota. Mitigate by making `DedupePanel` load on-demand (user expands it), not on initial dashboard load.
+- Con: Preview can become stale if the user runs a sync in another tab. Acceptable — a "Refresh" button or re-triggering on next dashboard load handles this.
+
+**No new DB table required.** The existing `courseTypeCalendars` table already stores the sub-calendar IDs needed for bulk-fetching existing GCal events.
+
+### Pattern 5: Conflict Detection at Sync Time, Storage in DB
+
+**What:** A "conflict" is an event that already exists in GCal (matched by `canvasCanvasUid`) but where the GCal version has been manually edited by the user (title or time changed relative to Canvas). Currently `hasChanged()` in `gcalSync.ts` detects this and overwrites silently. The new behavior: when `hasChanged()` is true AND the existing GCal event's `updated` timestamp post-dates the last sync, record the conflict in the `syncConflicts` table instead of overwriting.
+
+**When to use:** Whenever Canvas content and user-edited GCal content diverge on the same event.
+
+**Trade-offs:**
+- Pro: Preserves user edits. Conflict detection is an add-on to the existing diff — no structural changes to `gcalSync.ts` beyond passing a `conflictMode` parameter.
+- Pro: `syncConflicts` rows are small and bounded — conflicts are rare.
+- Con: Requires a new DB table (`syncConflicts`) and a resolution UI. The table must be cleaned up when conflicts are resolved.
+- Con: Detecting "user edited the GCal event" requires comparing the GCal event's `updated` time to the last sync time. The last sync time must be stored (hence the `syncLog` table is a prerequisite for conflict detection).
+
+**Simplified alternative worth considering:** Instead of per-event conflict tracking, surface "these events would be overwritten" as a warning in the `DedupePanel` preview and let the user exclude them before syncing. This avoids the `syncConflicts` table entirely and requires no change to `gcalSync.ts`. Recommend starting here and adding full conflict storage only if user feedback demands it.
 
 ## Data Flow
 
-### OAuth Account Linking Flow
+### Cron Sync Flow
 
 ```
-User clicks "Connect School Account"
+Vercel cron fires (daily) → GET /api/cron/sync
     |
     v
-Custom route sets Google authorize URL
-  with prompt=select_account + state=link:school
+Check Authorization: Bearer $CRON_SECRET
     |
     v
-Google OAuth consent → redirect to /api/auth/callback/google
+SELECT users WHERE canvasIcsUrl IS NOT NULL
     |
     v
-NextAuth signIn callback detects state=link:school
-  → links new account record to existing userId
-  → stores access_token, refresh_token, expires_at in accounts table
+For each user (serial):
+  getFreshAccessToken(userId, 'personal') → null? skip user
+  parseCanvasFeed(user.canvasIcsUrl)
+  filterEventsForSync(userId, groupedEvents)
+  syncCanvasEvents(userId, filteredEvents, colorMap)
+  mirrorSchoolCalendars(userId)
     |
     v
-UI reads session → shows both accounts linked
-```
-
-### Scheduled Sync Flow
-
-```
-Vercel cron fires → GET /api/cron/sync
-    |
-    v
-Verify CRON_SECRET
-    |
-    v
-Load all users with linked school + personal tokens
-    |  (parallel, with concurrency limit)
-    v
-For each user:
-  tokenStore.getCalendarClient(userId, 'school')    -- read client
-  tokenStore.getCalendarClient(userId, 'personal')  -- write client
-    |
-    v
-filterEngine.getActiveFilters(userId)
-    |
-    v
-icalParser.parseCanvasFeed(user.canvasFeedUrl)
-    |  filtered result
-    v
-gcalSync.syncToGoogleCalendar({
-  sourceClient: schoolClient,   -- reads school calendar
-  destClient: personalClient,   -- writes to personal calendar
-  events: filteredEvents,
-})
-    |
-    v
-syncLog.record(userId, { synced, skipped, failed, timestamp })
+writeSyncLog(userId, 'cron', summary)
     |
     v
 Return 200 { usersProcessed, totalSynced }
 ```
 
-### Manual Sync Flow
+### Deadline Countdown Flow
 
 ```
-User clicks "Sync Now"
+SyncDashboard mounts
     |
     v
-POST /api/sync  (authenticated via NextAuth session cookie)
+Fetch /api/parse-ics  (existing call — no change)
     |
     v
-Extract userId from session → same path as scheduled sync (single user)
+courses[] with events[].start already available in component state
     |
     v
-Return sync result to UI
+CountdownPanel receives courses prop
+    |
+    v
+Filter: events where start > now, sort by start ascending
+Compute: daysUntil = Math.ceil((start - now) / 86400000)
+    |
+    v
+Render sorted list with "X days" badges — no API call
+```
+
+### Deduplication Preview Flow
+
+```
+User expands DedupePanel (lazy load)
+    |
+    v
+Fetch GET /api/sync/preview
+    |
+    v
+Server: parseCanvasFeed + filterEventsForSync (same as sync)
+    |
+    v
+For each sub-calendar (from courseTypeCalendars table):
+  calendar.events.list()  (read-only, same query as syncCanvasEvents)
+    |
+    v
+Run hasChanged() diff for each event → { toInsert[], toUpdate[], unchanged[] }
+    |
+    v
+Return diff to client (no GCal writes)
+    |
+    v
+DedupePanel renders: "X new, Y to update, Z already synced"
+```
+
+### Conflict Detection Flow (Sync Time)
+
+```
+syncCanvasEvents processes an event:
+  existing = existingByUid.get(event.uid)  (already fetched)
+    |
+    v
+If existing exists AND hasChanged(event, existing):
+  Check existing.updated vs lastSyncAt from syncLog
+    |
+    if existing.updated > lastSyncAt:
+      → User edited this event in GCal after last sync
+      → Write row to syncConflicts (userId, uid, gcalEventId, fieldDiffs as JSON)
+      → Skip overwrite (or overwrite + log, based on user setting)
+    else:
+      → Canvas updated the event → proceed with normal update (existing behavior)
 ```
 
 ### State Management
 
 ```
-Server (DB)                                Client (React state)
------------                                -------------------
-users table                                session (from NextAuth cookie)
-accounts table (tokens)    <-- Auth.js --> useSession() hook
-preferences table          <-- SWR/fetch-> FilterSetup component state
-sync_log table             <-- SWR/fetch-> SyncStatus component state
+Server (DB)                              Client (React state in SyncDashboard)
+-----------                              ------------------------------------
+users.canvasIcsUrl          ← prop  →   hasCanvasUrl (existing)
+syncLog (last row)          ← fetch →   lastSyncedAt (currently localStorage — migrate to DB)
+syncConflicts rows          ← fetch →   ConflictPanel.conflicts[]
+courseTypeCalendars         ← (hidden) → DedupePanel uses /api/sync/preview
+icalParser output           ← /api/parse-ics → courses[].events[] → CountdownPanel
 ```
 
-## Scaling Considerations
+**Key change to `lastSyncedAt`:** Currently stored in `localStorage`. For cron-triggered syncs, `localStorage` is never updated. Migrate `lastSyncedAt` to `syncLog` table — dashboard reads it via API on load. `localStorage` fallback is safe to remove once `syncLog` is wired.
 
-This is a personal tool (single user or a small number of users). Scaling is not a primary concern, but architecture should not create unnecessary bottlenecks.
+## New DB Tables
 
-| Scale | Architecture Adjustment |
-|-------|-------------------------|
-| 1-10 users | Single Vercel Function for cron, synchronous per-user sync, Neon free tier |
-| 10-100 users | Fan-out: cron enqueues per-user sync tasks (e.g., via separate POST requests or Vercel Queue); stay within function duration limits |
-| 100+ users | External queue (BullMQ + Redis, or Trigger.dev); upgrade to Vercel Pro for per-minute cron precision |
+### `syncLog`
 
-### Scaling Priorities
+```
+syncLog:
+  id            serial PK
+  userId        integer FK → users.id ON DELETE CASCADE
+  triggeredBy   text ('manual' | 'cron')
+  startedAt     timestamp with time zone
+  completedAt   timestamp with time zone
+  status        text ('complete' | 'error')
+  insertedCount integer
+  updatedCount  integer
+  skippedCount  integer
+  failedCount   integer
+  errors        text[]   -- JSON array of error messages
+```
 
-1. **First bottleneck:** Vercel Function max duration. A single cron function syncing 20+ users serially will time out. Fix: fan out per-user work into separate async requests.
-2. **Second bottleneck:** Google Calendar API rate limits per OAuth client. Fix: existing sliding-window concurrency in `gcalSync.ts` already handles this.
+**Index:** `(userId, startedAt DESC)` — for the dashboard's "last synced" query (SELECT WHERE userId = ? ORDER BY startedAt DESC LIMIT 1).
+
+### `syncConflicts`
+
+```
+syncConflicts:
+  id              serial PK
+  userId          integer FK → users.id ON DELETE CASCADE
+  eventUid        text        -- Canvas UID (same as eventOverrides.eventUid)
+  gcalEventId     text        -- GCal event id on personal account
+  calendarId      text        -- GCal sub-calendar id
+  canvasSnapshot  jsonb       -- Canvas event fields at detection time
+  gcalSnapshot    jsonb       -- GCal event fields at detection time
+  detectedAt      timestamp with time zone
+  resolvedAt      timestamp   -- null until user resolves
+  resolution      text        -- null | 'keep_canvas' | 'keep_gcal' | 'skip'
+```
+
+**Index:** `(userId, resolvedAt) WHERE resolvedAt IS NULL` — for the ConflictPanel's "unresolved conflicts" query.
+
+**Prerequisite for conflict detection:** `syncLog` must exist first — conflict detection compares `existing.updated` to the timestamp of the last completed sync.
+
+## Build Order Considerations
+
+Dependencies create this build sequence for v1.1:
+
+1. **`syncLog` DB table + `syncLog.ts` service** — Required by both the cron endpoint and the conflict detection. Lowest risk, no new UI. Also unblocks migrating `lastSyncedAt` out of `localStorage`.
+2. **`/api/cron/sync` route + `vercel.json` crons entry** — Pure server work. Calls existing `runSyncJob`-equivalent. Depends only on `syncLog`.
+3. **`CountdownPanel`** — Pure UI addition. Reads data already fetched by `SyncDashboard` (`courses` state from `/api/parse-ics`). No backend changes required. Can be built in parallel with step 2.
+4. **`/api/sync/preview` route** — Dry-run read of GCal. Depends on existing `parseCanvasFeed`, `filterEventsForSync`, `courseTypeCalendars` table. No new DB tables.
+5. **`DedupePanel`** — Client component that calls `/api/sync/preview`. Depends on step 4.
+6. **`syncConflicts` DB table** — Depends on `syncLog` (step 1). Required before step 7.
+7. **Conflict detection in `gcalSync.ts`** — Small change to `syncCanvasEvents`: when `hasChanged()` is true and the GCal event was modified after last sync, write to `syncConflicts` instead of overwriting. Depends on `syncLog` (for last sync time lookup) and `syncConflicts` (step 6).
+8. **`ConflictPanel` + resolution API** — Client component + a PATCH endpoint to mark a conflict resolved. Depends on steps 6–7.
+
+**Recommended phase boundaries:**
+- Phase 05: `syncLog` + cron endpoint + `CountdownPanel` — highest value, lowest risk
+- Phase 06: `DedupePanel` via `/api/sync/preview` — medium complexity, read-only
+- Phase 07: Conflict detection + `ConflictPanel` — most complex, depends on phases 05–06
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Storing OAuth Tokens in NextAuth JWT Session Cookies
+### Anti-Pattern 1: Querying Users by Active Session in the Cron Handler
 
-**What people do:** Forward OAuth `access_token` and `refresh_token` into the session JWT (via the `jwt` callback in NextAuth) so they're available on the client or in API route session objects without a DB lookup.
+**What people do:** Check `getSession()` inside the cron handler to get the userId, then sync only that user.
 
-**Why it's wrong:** The cron job runs without a user session — it must retrieve tokens from the database on behalf of all users. Tokens in JWTs are per-user, per-browser, and expire when the cookie expires. There is no way to access them from a background job. Additionally, refresh tokens in cookies are lost when the user clears cookies.
+**Why it's wrong:** Vercel cron invocations have no browser session. `getSession()` reads a cookie from the incoming request; the cron caller (Vercel infrastructure) sends no cookie. The result is always `null`, so no users get synced.
 
-**Do this instead:** Use a database adapter (Auth.js database session strategy). Tokens live in the `accounts` table. The `tokenStore` service reads them by `userId`, no session required.
+**Do this instead:** Authenticate the cron request via `CRON_SECRET` header, then query all qualifying users directly from the DB as shown in Pattern 2.
 
-### Anti-Pattern 2: Using `node-cron` or `setInterval` for Scheduled Sync
+### Anti-Pattern 2: Storing Countdown Data in the DB
 
-**What people do:** Register a cron expression inside the Next.js server startup code or an API route handler using `node-cron`.
+**What people do:** Add a `deadlines` table to cache upcoming events and serve the countdown from it.
 
-**Why it's wrong:** Vercel serverless functions are stateless. The process is destroyed after each request. A `node-cron` timer registered during one request does not persist to the next. The cron fires once and never again.
+**Why it's wrong:** The Canvas ICS feed is already parsed on every dashboard load for the course list. A separate `deadlines` table is a stale cache that can diverge from the live feed. `parseCanvasFeed` already calls `classifyEventsWithCache` which hits the DB classifier cache — subsequent parses of the same titles are fast.
 
-**Do this instead:** Declare the schedule in `vercel.json` under `"crons"`. Vercel invokes a standard HTTP endpoint on schedule. The endpoint is a regular App Router route handler.
+**Do this instead:** Compute the countdown in the client from the `courses[].events[]` data already loaded by `SyncDashboard`. No extra API call, no cache invalidation problem.
 
-### Anti-Pattern 3: A Single Google OAuth Client for Both Accounts
+### Anti-Pattern 3: Treating the DedupePanel as a Sync Source of Truth
 
-**What people do:** Reuse the same OAuth2 client initialized with one set of tokens, and try to switch credentials mid-operation.
+**What people do:** Store the preview diff results in the DB, then use those stored results to decide what to sync next.
 
-**Why it's wrong:** The `googleapis` client is stateful once credentials are set. Swapping tokens on an in-flight client leads to subtle authorization errors, especially during token auto-refresh. The school and personal accounts need different scopes (`calendar.readonly` vs `calendar.events`).
+**Why it's wrong:** GCal state can change between when the preview was computed and when sync runs. Stale preview results lead to incorrect insert/update/skip decisions.
 
-**Do this instead:** `tokenStore.getCalendarClient()` returns a fresh, fully-initialized `google.calendar` client per account per sync run. Keep the two clients separate through the entire sync cycle.
+**Do this instead:** The real sync always re-fetches existing GCal events fresh (`existingByUid` map rebuilt per run). The preview is read-only display only — not an input to the sync engine.
 
-### Anti-Pattern 4: Triggering the Cron Endpoint Without Authentication
+### Anti-Pattern 4: Skipping CRON_SECRET Validation
 
-**What people do:** Leave the cron route unprotected, assuming Vercel is the only caller.
+**What people do:** Leave the cron route unprotected, relying on "nobody knows the URL."
 
-**Why it's wrong:** Any actor can POST to `/api/cron/sync` and trigger a sync for all users, exhausting Google API quota or generating unwanted calendar events.
+**Why it's wrong:** The route URL is public. Any actor can trigger a full sync for all users, exhausting Google API quota or generating unwanted calendar events.
 
-**Do this instead:** Check `Authorization: Bearer $CRON_SECRET` as shown in Pattern 2. Vercel sets this header automatically when it invokes the route; your code rejects all other callers.
+**Do this instead:** Always validate `Authorization: Bearer $CRON_SECRET`. Set `CRON_SECRET` as a Vercel environment variable (>= 16 random characters). Vercel injects it automatically into cron invocations.
+
+### Anti-Pattern 5: Keeping `lastSyncedAt` in `localStorage` After Adding Cron
+
+**What people do:** Keep the existing `localStorage.setItem('lastSyncedAt', ...)` pattern unchanged.
+
+**Why it's wrong:** Cron-triggered syncs run server-side with no browser. `localStorage` is never updated. The UI shows a stale "Last synced" timestamp even after multiple automatic syncs have run.
+
+**Do this instead:** Store `lastSyncedAt` in `syncLog`. The dashboard reads the latest completed sync from `syncLog` via a lightweight API call on load. `localStorage` can be kept as a client-side optimistic update only, with `syncLog` as the authoritative source.
 
 ## Integration Points
 
@@ -329,51 +428,31 @@ This is a personal tool (single user or a small number of users). Scaling is not
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Google OAuth (personal) | Auth.js GoogleProvider, database adapter | Scopes: `calendar.events`, `userinfo.email` |
-| Google OAuth (school) | Auth.js GoogleProvider (second sign-in/link flow), same provider config | Scopes: `calendar.readonly`, `userinfo.email`. May be blocked by Workspace admin policy. |
-| Google Calendar API | `googleapis` v3 REST client, two separate OAuth2 clients per sync | Rate limit: 1M queries/day per project; 10 requests/second/user |
-| Canvas ICS feed | HTTP GET by `node-ical` (no auth) | URL is user-provided; validate before storing |
-| Neon Postgres | `@neondatabase/serverless` driver + Drizzle ORM | Connection pooling via PgBouncer; works on Vercel Edge and Node runtimes |
-| Vercel Cron | HTTP GET from Vercel infrastructure to `/api/cron/sync` | Hobby: once/day. Pro: up to once/minute. Always UTC. |
+| Vercel Cron | HTTP GET from Vercel infrastructure to `/api/cron/sync` | Hobby: once/day, up to 59-min jitter. Add `"crons"` block to `vercel.json`. |
+| Google Calendar API (read, for preview) | Same `calendar.events.list` calls as `syncCanvasEvents` | `/api/sync/preview` adds read-only GCal calls at dashboard load time; contributes to quota. Load lazily. |
+| Canvas ICS feed | Existing `parseCanvasFeed` via `node-ical.async.fromURL` | No change. Countdown uses data already fetched for course list display. |
+| Neon Postgres | Drizzle ORM — two new tables (`syncLog`, `syncConflicts`) | Run Drizzle `generate` + `migrate` before deploying features that depend on them. |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| API routes ↔ syncOrchestrator | Direct TypeScript function call | Both run server-side; no HTTP between them |
-| syncOrchestrator ↔ tokenStore | Direct function call | tokenStore is a dependency injected into orchestrator |
-| syncOrchestrator ↔ filterEngine | Direct function call | filterEngine returns filtered event list |
-| syncOrchestrator ↔ gcalSync | Direct function call | gcalSync extended to accept an explicit `google.calendar` client |
-| syncOrchestrator ↔ icalParser | Direct function call | icalParser unchanged |
-| API routes ↔ DB | Drizzle ORM queries via `lib/db.ts` | Services do not import `lib/db.ts` directly; they receive db as a parameter for testability |
-| Cron route ↔ manual sync route | Both call `syncOrchestrator` — no shared HTTP | Keep sync logic in `syncOrchestrator.ts`, not inline in route handlers |
-
-## Build Order Implications
-
-The component dependencies create a clear build sequence:
-
-1. **Database schema + migration** — Everything else depends on persistent state.
-2. **Auth.js integration** (`lib/auth.ts`, `/api/auth/[...nextauth]`) — Tokens cannot be stored or retrieved without the auth layer and DB adapter.
-3. **`tokenStore.ts`** — Depends on DB and Auth.js account records. Blocks the orchestrator.
-4. **`filterEngine.ts`** — Depends on DB (preferences schema). Can be built in parallel with `tokenStore`.
-5. **Extend `gcalSync.ts`** to accept an explicit calendar client — Small change, unblocks the orchestrator.
-6. **`syncOrchestrator.ts`** — Assembles all services. Requires tokenStore, filterEngine, icalParser, gcalSync.
-7. **Manual sync API route** (`/api/sync`) — Thin wrapper over orchestrator. Quick to build once orchestrator exists.
-8. **Cron route** (`/api/cron/sync`) — Same orchestrator call, adds CRON_SECRET check + multi-user loop.
-9. **Preferences API + UI** — Can be built in parallel after DB schema; filter settings are read by orchestrator but the UI is independent.
-10. **AccountLinkStatus + SyncStatus UI components** — Built last; they consume the already-working backend.
+| `/api/cron/sync` ↔ sync pipeline | Direct TypeScript function call (same process) | Cron handler calls the same helper functions as `/api/sync` — no HTTP between them |
+| `/api/cron/sync` ↔ `syncLog.ts` | Direct function call | `writeSyncLog(userId, 'cron', summary)` after each user completes |
+| `/api/sync` ↔ `syncLog.ts` | Direct function call | `writeSyncLog(userId, 'manual', summary)` after `runSyncJob` resolves |
+| `/api/sync/preview` ↔ sync pipeline | Direct function call (parse + filter only) | Preview calls `parseCanvasFeed` and `filterEventsForSync` but NOT `syncCanvasEvents` |
+| `CountdownPanel` ↔ `SyncDashboard` | React props — `courses` array passed down | No additional API calls from CountdownPanel; reads from parent's existing state |
+| `DedupePanel` ↔ `/api/sync/preview` | Client `fetch()` — triggered on panel expand | Lazy: do not call on dashboard mount; call only when user opens the panel |
+| `ConflictPanel` ↔ `syncConflicts` table | Via PATCH `/api/sync/conflicts/[id]` route | User picks resolution; route marks `resolvedAt` + `resolution` in DB |
+| `gcalSync.ts` ↔ `syncConflicts` | Direct DB insert inside `syncCanvasEvents` | Only when `hasChanged()` is true AND GCal event updated after last sync |
+| `gcalSync.ts` ↔ `syncLog` | Indirect — cron/manual routes query `syncLog` for last sync time before calling `syncCanvasEvents` | Pass `lastSyncAt: Date | null` as a parameter to `syncCanvasEvents` to avoid circular dependency |
 
 ## Sources
 
-- [Vercel Cron Jobs — Official Docs](https://vercel.com/docs/cron-jobs) — HIGH confidence
-- [Vercel Managing Cron Jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs) — HIGH confidence (security pattern, idempotency requirement, duration limits)
-- [Vercel Cron Usage and Pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing) — HIGH confidence (Hobby: once/day; Pro: once/minute)
-- [NextAuth.js Account Linking Discussion](https://github.com/nextauthjs/next-auth/discussions/1702) — MEDIUM confidence (community-documented, not official API)
-- [Google OAuth 2.0 for Web Server Applications](https://developers.google.com/identity/protocols/oauth2/web-server) — HIGH confidence
-- [Auth.js Pg Adapter](https://authjs.dev/getting-started/adapters/pg) — HIGH confidence
-- [Neon + Vercel Integration](https://vercel.com/marketplace/neon) — HIGH confidence
-- [NextAuth.js FAQ on token storage](https://next-auth.js.org/faq) — HIGH confidence (DB adapter vs JWT session trade-offs)
+- [Vercel Cron Jobs — Manage Cron Jobs (securing cron jobs)](https://vercel.com/docs/cron-jobs/manage-cron-jobs) — HIGH confidence (official docs, CRON_SECRET pattern verified)
+- [Vercel Cron Jobs — Usage and Pricing (Hobby: once/day)](https://vercel.com/docs/cron-jobs/usage-and-pricing) — HIGH confidence
+- Direct codebase inspection: `src/services/gcalSync.ts`, `src/app/api/sync/route.ts`, `src/lib/db/schema.ts`, `src/services/icalParser.ts`, `src/services/schoolMirror.ts`, `src/services/syncFilter.ts`, `src/components/SyncDashboard.tsx`, `src/lib/tokens.ts` — HIGH confidence
 
 ---
-*Architecture research for: Canvas-to-GCal multi-account OAuth + scheduled sync*
-*Researched: 2026-03-11*
+*Architecture research for: Canvas-to-GCal v1.1 — auto-sync, deadline countdown, deduplication dashboard, conflict resolution*
+*Researched: 2026-03-16*

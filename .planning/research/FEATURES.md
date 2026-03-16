@@ -1,8 +1,14 @@
 # Feature Research
 
-**Domain:** Calendar sync / aggregation app (Canvas ICS + Google Calendar mirror)
-**Researched:** 2026-03-11
-**Confidence:** MEDIUM-HIGH (ecosystem well-understood; Canvas-specific patterns from official docs + community)
+**Domain:** Calendar sync automation & visibility — v1.1 additions to Canvas-to-GCal
+**Researched:** 2026-03-16
+**Confidence:** MEDIUM (UX patterns from calendar/productivity apps; Canvas-to-GCal-specific behavior inferred from existing codebase context)
+
+---
+
+## Scope Note
+
+This file covers only the four v1.1 features being added to the existing v1.0 app. v1.0 features (OAuth, ICS parsing, course filtering, manual sync, school calendar mirror) are already built and are treated as stable dependencies here.
 
 ---
 
@@ -14,124 +20,93 @@ Features users assume exist. Missing these = product feels incomplete or broken.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Google OAuth (both accounts) | Every modern Google-integrated app uses OAuth — manual token paste is a red flag | MEDIUM | Requires Google Cloud project, redirect URIs, token storage; school + personal = two separate OAuth grants in one session |
-| Persistent token storage | Users expect to stay connected; re-pasting tokens on every visit is unacceptable | MEDIUM | Needs server-side session or encrypted cookie storage; stateless app must become stateful here |
-| Canvas ICS feed URL input | Core entry point for Canvas data — already partially exists | LOW | Already built; needs polish and validation feedback |
-| Course-level filtering (select which courses sync) | Users have many Canvas courses; they don't want all of them | MEDIUM | Checkbox list of parsed courses; persisted per user |
-| Push Canvas events to Google Calendar | The primary value delivery — without this there is no product | MEDIUM | Already partially exists in `gcalSync.ts`; needs OAuth token plumbing |
-| Deduplication on re-sync | Users will sync multiple times; duplicate events destroy trust | MEDIUM | Already in `gcalSync.ts`; must use stable IDs derived from ICS UID |
-| Manual "Sync Now" trigger | Users want control — to force a refresh immediately | LOW | Button that calls sync pipeline; needs visible loading state |
-| Sync status / last synced timestamp | Users need confirmation that sync ran and when | LOW | Simple timestamp displayed in UI; critical for trust |
-| Basic error feedback | If OAuth fails, feed is invalid, or API quota is hit — user must know why | MEDIUM | Clear error messages, not silent failures |
-| School Google Calendar mirror (one-way) | Core stated requirement — school → personal is the second half of the value prop | HIGH | Requires school OAuth scope for calendar read; create copies in personal calendar |
+| Last-synced timestamp visible on dashboard | Users need to know whether the data they see is current — every sync app (Reclaim.ai, OneCal, CalendarBridge) shows this | LOW | Already partially present from v1.0 sync status display; must persist in DB so auto-sync can update it without user interaction |
+| Auto-sync success/failure indication | If cron ran overnight and failed, user discovers stale data — silent failure destroys trust | LOW | Show both "last synced at X" and "last sync status: OK / failed" on dashboard; write sync result to DB row per user |
+| Opt-out / pause for auto-sync | Users expect control over background operations — OneDrive, Google Drive, Dropbox all provide pause/disable | LOW | Toggle in settings to disable auto-sync; do not force-sync users who have opted out |
+| Overdue assignment highlight | Every student deadline tracker (StudentHub, Notion countdown templates, Canvas To-Do list) groups overdue items distinctly | LOW | Derived from ICS data already parsed; overdue = due_date < now(); no new data needed |
+| "N days until" countdown for upcoming deadlines | Users of Notion countdown templates and study timer apps consistently want "days remaining" not just raw date | LOW | Simple date math on existing parsed events; surface on dashboard below sync status |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set this product apart from generic tools like CalendarBridge or SyncGene.
+Features that set this product apart from generic calendar sync tools that lack Canvas awareness.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Event-level filtering within a course | Students want to sync assignments but not office-hours events, or vice versa | HIGH | Requires expanding the course tree into individual event types; significant UI complexity |
-| Automatic scheduled sync (periodic) | "Set and forget" — users don't want to manually trigger sync each time | MEDIUM | Cron job or Vercel Cron; every 1-6 hours is the sweet spot; must be idempotent |
-| Canvas course color mapping to GCal calendar colors | Visual continuity — each course gets a distinct color matching Canvas | LOW | Colors available in Canvas ICS `X-APPLE-CALENDAR-COLOR` extension or assignable by course |
-| Event title/description control | Choose whether to include assignment descriptions, point values, etc. in synced events | LOW | Filtering on ICS fields during transformation; low effort, noticeable UX win |
-| Selective calendar mirroring (choose which school calendars) | School accounts often have many calendars; students only care about class-related ones | MEDIUM | Requires listing school Google calendars via API and letting user pick |
-| Sync conflict reporting | Show which events were skipped or updated on last sync run | MEDIUM | Sync run summary: X created, Y updated, Z skipped |
+| Deadline countdown grouped by urgency tier | StudentHub organizes as overdue / today / tomorrow / this week — this Canvas-aware app can add course and type context (e.g., "CS 101 Assignment due in 2 days") | MEDIUM | Requires course name + event type already available in DB; UI renders grouped list; no new data fetch |
+| Deduplication preview before manual sync | Show user "12 new, 3 updated, 5 already synced" before committing changes; Apple Calendar iOS 26 introduced sync preview as a standard pattern | MEDIUM | Dry-run mode on existing `gcalSync.ts`; compute diff between parsed ICS events and existing GCal events; do not write — only return counts |
+| Conflict detail view (what changed in Canvas vs. what's in GCal) | Most calendar sync tools silently apply last-write-wins with no notification (CalendHub identified this as a UX gap in the market); surfacing changes builds trust | HIGH | Requires storing the last-synced state of each event to compare against new ICS data; new DB table or extra columns on existing events table |
+| Per-event conflict decision (keep Canvas / keep GCal / merge) | Outlook-style conflict dialog offers "Keep This Item" vs. "Keep Server Version"; users who manually edited GCal events expect their edits to be preserved | HIGH | Three-way UI decision; complex because Canvas is always source-of-truth in this app's one-way model; see Anti-Features below for scope limit |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create real problems for this project's scope and constraints.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Two-way / bidirectional sync | "Sync everything both directions" sounds complete | School accounts often have IT-managed write restrictions; creates infinite update loops; personal event changes leaking into school account is unexpected behavior; already explicitly out of scope | Keep one-way (school → personal, Canvas → personal) and make it reliable |
-| Real-time push sync (webhooks) | "Sync immediately when Canvas updates" sounds great | Canvas ICS is a pull-only feed with no push mechanism; Google Calendar webhooks require persistent server + public URL management; adds major operational complexity for marginal gain over hourly polling | Scheduled polling every 1-6 hours is adequate for academic deadlines |
-| Native mobile app | Students use phones | Out of scope; adds separate codebase, app store submissions, review cycles | Responsive web design + PWA installability (add to home screen) covers 90% of mobile use |
-| Outlook / Apple Calendar targets | "I don't use Google Calendar" | Adds OAuth flows and API clients for each provider; multiplicative complexity with no payoff for the stated use case | Hard-scope to Google Calendar; document clearly in onboarding |
-| AI-powered scheduling suggestions | Calendar sync tools are adding AI assistants | Completely orthogonal to the core problem; adds LLM API costs, latency, and scope | Do one thing well: reliable, accurate sync |
-| Shared / team calendars | "My study group wants to see this" | Introduces multi-tenancy, permissions, and privacy concerns | App is explicitly personal-use; document this |
-| Manual event editing within the app | "Let me edit the event here too" | Creates its own source-of-truth that conflicts with Canvas as the source; dedup logic breaks | Direct users to edit in Canvas or Google Calendar; the sync app is a one-way pipe |
+| Real-time sync / push on Canvas change | "Sync immediately when Canvas updates" — sounds like an obvious improvement | Canvas ICS is a polling-only feed; no push mechanism exists; Vercel Hobby cron is limited to once/day minimum; adding webhooks would require a persistent server | Daily auto-sync is sufficient for academic deadlines; manual "Sync Now" covers urgent cases |
+| Full bidirectional conflict resolution (user edits GCal, it pushes back to Canvas) | "I want to correct assignment details" | Canvas is the authoritative source; writing back to Canvas via ICS is not possible (ICS is read-only); Canvas API write access would require Canvas OAuth, a separate auth flow, and institutional permission | One-way model: Canvas always wins on factual fields (title, due date); GCal edits to synced events are overwritten on next sync by design |
+| Per-event conflict UI for every changed field | "Show me exactly what changed in each field" | If Canvas updates 40 assignments at semester start (syllabus revision), user must click through 40 conflict dialogs — high friction, low value | Show a summary count ("8 events have changed titles in Canvas"); only prompt for conflicts that involve GCal user edits vs. Canvas changes, which requires tracking GCal modification timestamps |
+| Hourly auto-sync on Vercel Hobby | More frequent sync = fresher data | Vercel Hobby plan cron minimum interval is once/day; attempting sub-daily cron is a billing/plan constraint, not a code constraint | Daily cron + manual "Sync Now" button satisfies the use case; document this clearly in settings UI |
+| Countdown timer with real-time seconds/minutes update | "Show me exactly how many hours and minutes left" | React re-render on interval wastes client resources; academic deadlines are 24h-scale events; sub-hour granularity is anxiety-inducing not helpful | Show days remaining for events more than 1 day out; show "Due today" / "Due in X hours" only for same-day items; update on page load, not on interval |
+| Sync conflict log as permanent audit trail | "Show me every conflict that's ever occurred" | Unbounded DB growth; users don't read audit logs; the information becomes irrelevant after a sync decision | Show only the current sync run's summary; clear conflicts on next successful sync |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Google OAuth — school account]
-    └──required by──> [School Google Calendar mirror]
-    └──required by──> [Selective calendar mirroring]
+[Auto-sync cron]
+    └──requires──> [Per-user sync preferences stored in DB]  (already exists — v1.0)
+    └──requires──> [OAuth tokens stored in DB]               (already exists — v1.0)
+    └──requires──> [Sync result written to DB per user]      (new: last_synced_at, last_sync_status columns)
+    └──enables──>  [Last-synced timestamp on dashboard]
 
-[Google OAuth — personal account]
-    └──required by──> [Push Canvas events to Google Calendar]
-    └──required by──> [School Google Calendar mirror]
-    └──required by──> [Persistent token storage]
+[Deadline countdown UI]
+    └──requires──> [ICS events parsed and stored]            (already exists — v1.0 icalParser.ts)
+    └──requires──> [Course + event type data in DB]          (already exists — v1.0 schema)
+    └──enhances──> [Auto-sync cron]                          (countdown freshness depends on sync running)
 
-[Persistent token storage]
-    └──required by──> [Automatic scheduled sync]
-    └──required by──> [Sync status / last synced timestamp]
+[Deduplication dashboard]
+    └──requires──> [gcalSync.ts dedup logic]                 (already exists — v1.0)
+    └──requires──> [Dry-run mode on sync pipeline]           (new: flag to compute diff without writing)
+    └──enhances──> [Auto-sync cron]                          (preview useful before first cron run)
+    └──conflicts──> [Conflict resolution UI]                 (both show event-level diffs; risk of UI overlap)
 
-[Canvas ICS feed URL input]
-    └──required by──> [Course-level filtering]
-    └──required by──> [Push Canvas events to Google Calendar]
-
-[Course-level filtering]
-    └──enhances──> [Push Canvas events to Google Calendar]
-    └──prerequisite for──> [Event-level filtering within a course]
-
-[Push Canvas events to Google Calendar]
-    └──enhances──> [Sync conflict reporting]
-
-[School Google Calendar mirror]
-    └──enhances──> [Selective calendar mirroring]
-    └──enhances──> [Sync conflict reporting]
-
-[Manual "Sync Now" trigger]
-    └──enhances──> [Automatic scheduled sync]  (manual overrides the schedule)
-
-[Automatic scheduled sync] ──conflicts──> [Stateless app architecture]
+[Conflict resolution UI]
+    └──requires──> [Last-synced event state stored in DB]    (new: snapshot of event fields at last sync)
+    └──requires──> [GCal event modification timestamp]       (available via Google Calendar API updatedTime field)
+    └──requires──> [Deduplication dashboard]                 (conflicts are a subset of "already synced" events that have diverged)
+    └──conflicts──> [One-way sync model]                     (user decisions must still respect Canvas-as-source-of-truth)
 ```
 
 ### Dependency Notes
 
-- **Both OAuth grants are required before any sync can run.** The onboarding flow must collect school + personal Google credentials before showing filtering UI or running sync.
-- **Persistent token storage is a prerequisite for scheduled sync.** Without a stored token, there is no way to run sync on a schedule — the user is not present to re-auth.
-- **Course-level filtering must come before event-level filtering.** You need the course list before you can drill into individual event types. Build the tree top-down.
-- **Automatic scheduled sync conflicts with the current stateless architecture.** The app must gain some persistent state (at minimum: OAuth tokens + sync preferences) before a scheduler can function. This is the single biggest architectural prerequisite for the milestone.
-- **Manual sync trigger and scheduled sync are complementary, not competing.** Both call the same sync pipeline; the trigger source (user click vs. cron) is the only difference.
+- **Auto-sync requires a DB write of sync results.** The cron endpoint cannot update the dashboard without writing `last_synced_at` and `last_sync_status` back to the users table (or a sync_runs table). This is the most critical new schema change.
+- **Deadline countdown is a pure read.** No new data required — ICS events are already in the system. The only work is the dashboard UI component and sorting/grouping logic.
+- **Deduplication dashboard is a dry-run, not a new data source.** The existing `gcalSync.ts` diff logic runs without committing writes; the result is a count summary. The complexity is making the pipeline return a preview object instead of always executing.
+- **Conflict resolution UI has the highest complexity and the most risk of scope creep.** It requires storing event state snapshots (new schema), fetching GCal `updatedTime` fields (new API call), and presenting a decision UI. Consider scoping to "show what changed" without requiring a per-event decision.
+- **Deduplication and conflict resolution must be clearly separated in the UI.** "Already synced, no change" (dedup) and "synced but Canvas changed it since" (conflict) are different states that users distinguish immediately once they see them labeled incorrectly.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1)
+### This Milestone: v1.1 — Launch With
 
-Minimum viable product — what's needed to deliver the core value.
+Minimum needed to deliver the stated milestone goals.
 
-- [ ] Google OAuth flow for two accounts (school + personal) — without this, nothing works
-- [ ] Persistent token storage (server-side session or encrypted DB) — required for tokens to survive page navigation
-- [ ] Course-level filtering UI (checkbox list) — users must be able to exclude irrelevant courses
-- [ ] Push selected Canvas assignments to personal Google Calendar — core value delivery
-- [ ] School Google Calendar mirror to personal (one-way, all calendars) — second half of core value
-- [ ] Manual "Sync Now" button with loading state — user control and feedback
-- [ ] Sync status display (last synced timestamp + event counts) — trust signal
-- [ ] Basic error states (auth failure, bad ICS URL, API quota) — prevents silent failures
+- [ ] **Auto-sync via Vercel cron (daily)** — cron endpoint calls sync pipeline for all active users; writes `last_synced_at` + `last_sync_status` per user; dashboard shows these fields
+- [ ] **Deadline countdown on dashboard** — sorted list of upcoming Canvas deadlines grouped as: Overdue / Due Today / Due This Week / Upcoming; shows course name, event type, days remaining; updates on page load
+- [ ] **Deduplication preview (summary counts)** — before or after manual sync, show "N created / N updated / N skipped" breakdown; skipped events are the "already synced" bucket; no per-event listing required for MVP
 
-### Add After Validation (v1.x)
+### Defer to v1.2 (Add After Validation)
 
-Features to add once core sync is working and trusted.
+- [ ] **Conflict resolution UI (full)** — surface events where Canvas data changed since last sync AND user has edited the GCal copy; offer keep-Canvas / keep-GCal decision; defer because it requires new schema (event snapshots), new API calls, and a complex UI that depends on the rest of v1.1 being stable
+- [ ] **Per-event deduplication drill-down** — expand the summary counts into a list of individual events; useful but not necessary once the counts are trusted
 
-- [ ] Automatic scheduled sync (hourly/daily cron) — convenience upgrade once manual sync is proven reliable
-- [ ] Selective school calendar mirroring (choose which school calendars) — reduces noise once mirroring works
-- [ ] Canvas course color mapping to GCal — polish, low effort after core works
-- [ ] Sync run summary (X created, Y updated, Z skipped) — useful once users have run several syncs
+### Future (v2+)
 
-### Future Consideration (v2+)
-
-Features to defer until there is evidence of demand.
-
-- [ ] Event-level filtering within a course — high complexity; validate that course-level filtering is insufficient first
-- [ ] Event title/description field control — low priority; most students want full details
-- [ ] PWA / add-to-home-screen — useful only after core reliability is established
+- [ ] Sub-daily auto-sync (requires Vercel Pro plan upgrade or alternative scheduler)
+- [ ] Email / push notification when sync fails or high-priority deadline approaches
+- [ ] Conflict history / audit log
 
 ---
 
@@ -139,60 +114,51 @@ Features to defer until there is evidence of demand.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Google OAuth (both accounts) | HIGH | MEDIUM | P1 |
-| Persistent token storage | HIGH | MEDIUM | P1 |
-| Course-level filtering UI | HIGH | MEDIUM | P1 |
-| Push Canvas events to GCal | HIGH | LOW (mostly exists) | P1 |
-| School GCal mirror (one-way) | HIGH | MEDIUM | P1 |
-| Manual sync trigger | HIGH | LOW | P1 |
-| Sync status / last synced | MEDIUM | LOW | P1 |
-| Basic error feedback | HIGH | LOW | P1 |
-| Automatic scheduled sync | HIGH | MEDIUM | P2 |
-| Selective calendar mirroring | MEDIUM | MEDIUM | P2 |
-| Sync run summary | MEDIUM | LOW | P2 |
-| Canvas color mapping | LOW | LOW | P2 |
-| Event-level filtering | MEDIUM | HIGH | P3 |
-| Event field control | LOW | LOW | P3 |
+| Auto-sync cron (daily) | HIGH — eliminates manual sync burden | MEDIUM — cron endpoint + DB write per user | P1 |
+| Last-synced timestamp on dashboard | HIGH — trust signal for auto-sync | LOW — read from DB, already partially exists | P1 |
+| Deadline countdown (grouped by urgency) | HIGH — core dashboard value, no new data needed | LOW — date math + UI component | P1 |
+| Deduplication preview (summary counts) | MEDIUM — answers "what will this sync do?" | MEDIUM — dry-run mode on existing pipeline | P1 |
+| Opt-out toggle for auto-sync | MEDIUM — user control expectation | LOW — one DB boolean, settings UI | P2 |
+| Conflict resolution UI (summary view) | MEDIUM — shows what Canvas changed since last sync | HIGH — requires event snapshot schema | P2 |
+| Conflict resolution UI (per-event decision) | LOW — most users trust Canvas as source-of-truth | HIGH — complex UI + API + schema | P3 |
 
 **Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- P1: Must have for v1.1 launch
+- P2: Should have, add if P1 is stable
+- P3: Nice to have, v1.2 or later
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | CalendarBridge | SyncGene | OneCal | Our Approach |
-|---------|---------------|----------|--------|--------------|
-| Multi-account Google sync | Yes (up to 8) | Yes (limited sources) | Yes | Two-account (school + personal) — fixed topology, not general-purpose |
-| One-way sync option | Yes | Yes | Yes | One-way only (intentional) |
-| Event filtering / selection | Yes (expanded 2025) | No | Partial | Course-level + event-type level; Canvas-aware grouping |
-| Sync frequency | Real-time | Near-real-time | Real-time | Hourly scheduled + manual trigger (ICS pull = polling only) |
-| LMS / ICS feed support | No | No | No | Core differentiator — Canvas ICS parsing is built-in |
-| Setup complexity | 3-step OAuth | Multi-step | Simple | 2-step OAuth + paste ICS URL; aim for < 5 min to first sync |
-| Privacy / "busy block" mode | Yes | No | Yes | Not needed — personal calendar, all details visible |
-| Pricing | $4+/month | $12.50+/month | Paid | Free (self-hosted or Vercel free tier) |
+| Feature | Reclaim.ai | OneCal | StudentHub | Our Approach |
+|---------|------------|--------|------------|--------------|
+| Background auto-sync | Yes (real-time, paid) | Yes (real-time, paid) | Yes (via Canvas API) | Daily cron (Vercel Hobby constraint); manual override always available |
+| Sync status display | Last sync shown in planner | Not surfaced prominently | N/A | `last_synced_at` + status badge on dashboard |
+| Dedup / "already synced" UI | Opaque synced events shown with reduced opacity in planner | Hide source calendar to avoid visual duplication | N/A | Show counts (created / updated / skipped) before and after sync |
+| Conflict resolution | Silent last-write-wins; no user prompt | Silent last-write-wins | N/A | Summary of what changed in Canvas since last sync; full per-event decision deferred |
+| Deadline countdown | Not offered (sync tool, not task manager) | Not offered | Overdue / today / tomorrow / this week grouping | Same urgency tiers as StudentHub, but Canvas-aware (course + event type labels) |
+| Pause / disable sync | Yes (per-sync policy) | Yes | N/A | Toggle in settings to disable auto-sync |
 
-**Key competitive insight:** No existing general-purpose calendar sync tool understands Canvas ICS structure (courses, assignment types). That LMS-awareness — grouping events by course, filtering by assignment type — is the unique value this app delivers that CalendarBridge/SyncGene cannot.
+**Key competitive insight:** No calendar sync tool combines all-in-one Canvas deadline awareness with the dedup preview and conflict summary that v1.1 adds. Reclaim/OneCal handle the sync reliably but are generic; StudentHub handles the deadline view but is read-only (no calendar write). This milestone closes the gap between "I can see my deadlines" and "my calendar stays current automatically."
 
 ---
 
 ## Sources
 
-- [CalendarBridge: How to Sync Two Google Calendars](https://calendarbridge.com/blog/how-to-sync-two-google-calendars/) — CalendarBridge feature set, OAuth flow, filtering options
-- [CalendarBridge vs SyncGene Comparison 2025](https://slashdot.org/software/comparison/CalendarBridge-vs-SyncGene/) — Competitor feature comparison
-- [Top Calendar Synchronization Apps 2025 — calendarsync.com](https://www.calendarsync.com/blog/calendar-synchronization-apps) — Essential vs premium features, user priorities
-- [How to Sync Multiple Google Calendars 2025 — CalendHub](https://calendhub.com/blog/methods-sync-multiple-google-calendars-2025) — Multi-account sync methods
-- [CalendarBridge 2026 Review — meetergo](https://meetergo.com/en/magazine/calendarbridge) — Current feature set
-- [Canvas ICS Feed — Instructure Community](https://community.canvaslms.com/t5/Student-Guide/How-do-I-view-the-Calendar-iCal-feed-to-subscribe-to-an-external/ta-p/331) — Canvas ICS feed capabilities and limitations
-- [Google OAuth 2.0 Best Practices — Google Developers](https://developers.google.com/identity/protocols/oauth2/resources/best-practices) — OAuth UX guidelines
-- [Mirror Calendar Feature — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/4690658/calendar-mirroring) — One-way mirror user expectations
-- [Implement Bidirectional Calendar Sync 2025 — CalendHub](https://calendhub.com/blog/implement-bidirectional-calendar-sync-2025/) — Sync status tracking patterns, timestamp fields
-- [Handle API Errors — Google Calendar API](https://developers.google.com/workspace/calendar/api/guides/errors) — Error handling patterns for GCal integration
-- [15 Filter UI Patterns That Actually Work 2025 — Bricxlabs](https://bricxlabs.com/blogs/universal-search-and-filters-ui) — Checkbox filter UX patterns
+- [Reclaim.ai — How to handle duplicate events from Calendar Sync](https://help.reclaim.ai/en/articles/3639940-how-to-handle-duplicate-events-from-calendar-sync) — Dedup UI pattern: opaque events, hide-source-calendar approach
+- [Reclaim.ai — How Calendar Sync works](https://help.reclaim.ai/en/articles/3600762-overview-how-calendar-sync-works-and-what-it-s-for) — Sync overview and event state handling
+- [Google Open Health Stack — Offline & Sync Design Guidelines](https://developers.google.com/open-health-stack/design/offline-sync-guideline) — Sync status states: Queued / Syncing / Synced / Failed; timestamp display guidance; "last updated" patterns
+- [StudentHub Canvas Assignment Tracker](https://www.student-hub.net/canvas-assignment-tracker) — Urgency grouping: Overdue / Due Today / Due Tomorrow / Due This Week; colored dot calendar
+- [Notion Countdown Formula for Deadlines](https://noteapiconnector.com/notion-countdown-formula) — Days-remaining display: positive = future, 0 = today, negative = overdue; days/hours/minutes granularity guidance
+- [TIMIFY — Google Calendar Sync Conflict Types](https://www.timify.com/en/support/4028436-the-google-calendar-sync-app-conflict-types-to-watch-out-for/) — Dedicated "Sync Conflicts" tab; scheduling vs. working-time conflict types; "delete or move one" resolution UI
+- [CalendHub — Best Two-Way Calendar Sync Software 2025](https://calendhub.com/blog/best-two-way-calendar-sync-software-2025/) — Identified UX gap: most tools apply last-write-wins silently; CalendHub differentiates by notifying which version was preserved
+- [Sachith Dassanayake — Offline Sync & Conflict Resolution Patterns (Feb 2026)](https://www.sachith.co.uk/offline-sync-conflict-resolution-patterns-architecture-trade%E2%80%91offs-practical-guide-feb-19-2026/) — Side-by-side comparison of conflicting versions; timestamp context; simple action choices (keep local / use server / merge)
+- [Microsoft Outlook — Sync Conflict Resolution](https://support.microsoft.com/en-us/office/outlook-shows-conflict-errors-when-updating-or-cancelling-meetings-69c26227-40ef-4377-8f12-1749fcaad2ad) — "Keep This Item" vs. "Keep Server Version" decision UI pattern
+- [Chrome for Developers — Periodic Background Sync API](https://developer.chrome.com/docs/capabilities/periodic-background-sync) — Background sync UX expectations: no user prompt needed; restrictions on registration frequency
+- [OneCal — Calendar Sync](https://www.onecal.io/) — Conflict avoidance via automatic block-busy; no user decision required in simple cases
 
 ---
 
-*Feature research for: Canvas-to-Google-Calendar sync app*
-*Researched: 2026-03-11*
+*Feature research for: Canvas-to-GCal v1.1 — Automation & Visibility milestone*
+*Researched: 2026-03-16*

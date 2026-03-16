@@ -1,14 +1,12 @@
 # Stack Research
 
 **Domain:** Google OAuth multi-account, scheduled background sync, Vercel deployment for Next.js 16
-**Researched:** 2026-03-11
-**Confidence:** HIGH (all key claims verified against official docs or npm registry)
+**Researched:** 2026-03-16 (v1.1 update — auto-sync, countdown UI, dedup dashboard, conflict resolution)
+**Confidence:** HIGH (all key claims verified against official Vercel docs, npm registry, and React 19 official release notes)
 
 ---
 
-## Context: What Already Exists
-
-Do not re-research or change:
+## Context: What Already Exists (Do Not Re-Research)
 
 | Package | Version | Purpose |
 |---------|---------|---------|
@@ -18,58 +16,73 @@ Do not re-research or change:
 | `googleapis` | ^171.4.0 | Google Calendar API client |
 | `tailwindcss` v4 | — | Styling |
 | `jest` / `ts-jest` | ^30.3.0 / ^29.4.6 | Testing |
+| `arctic` | 3.7.0 | Google OAuth 2.0 authorization code flow |
+| `jose` | 6.2.1 | JWE encryption for token cookies |
+| `drizzle-orm` | ^0.45.1 | ORM for Neon Postgres |
+| `@neondatabase/serverless` | ^1.0.2 | Serverless Postgres driver |
+| `@anthropic-ai/sdk` | ^0.78.0 | AI event type classification |
+| `after()` from `next/server` | (built-in) | Background tasks after response close |
 
-Research below covers only the **new additions** needed for this milestone.
+Research below covers only the **new additions** needed for v1.1.
 
 ---
 
-## Recommended Stack (New Additions)
+## v1.1 Feature → Stack Mapping
 
-### Google OAuth 2.0
+| Feature | New Stack Needed? | What |
+|---------|------------------|------|
+| Auto-sync via Vercel cron (all users) | Configuration only | `vercel.json` cron entry + `CRON_SECRET` env var — no new packages |
+| Canvas deadline countdown UI | YES — date math | `date-fns@4.1.0` |
+| Event deduplication dashboard | No new packages | React state + existing DB data from current API routes |
+| Sync conflict resolution UI | No new packages | React 19 `useOptimistic` (built-in) + existing Drizzle queries |
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `arctic` | 3.7.0 | OAuth 2.0 authorization code flow for Google | Lightweight, runtime-agnostic, fully-typed, built on Fetch API. Provides a thin Google OAuth client without opinion on sessions — critical because we need two separate Google accounts (school + personal) stored independently. Does not impose a session model that would fight multi-account. |
-| `jose` | 6.2.1 | JWE encryption for token cookies | Official JOSE standard implementation. Used to encrypt refresh tokens + access tokens before writing them to HttpOnly cookies. Recommended directly by Next.js official docs for session encryption. |
+---
 
-**Why NOT NextAuth.js / Auth.js v5:**
-NextAuth v5 (`5.0.0-beta.30`) is still in beta — the `latest` npm tag is still v4. More importantly, NextAuth's session model is designed for a single authenticated user identity. Storing two separate Google accounts' tokens (school + personal) requires workarounds that fight the library's assumptions. The multi-account use case here is not "sign in with one of two providers" — it is "hold refresh tokens for two Google accounts simultaneously." Raw `arctic` + `jose` gives full control without the abstraction overhead. Use NextAuth when you have a conventional single-identity auth requirement.
+## Recommended Stack (New Additions for v1.1)
 
-**Why NOT NextAuth v4 (`4.24.13`, the current stable):**
-Same session-model mismatch. NextAuth would need a database adapter to store both accounts' tokens, adding storage complexity that isn't necessary when we can store two encrypted cookie payloads directly.
-
-### Token Storage
+### Core New Additions
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `jose` | 6.2.1 | JWE-encrypt token payloads into HttpOnly cookies | Each Google account gets its own named cookie (`gtoken-school`, `gtoken-personal`) containing an encrypted JSON payload: `{ access_token, refresh_token, expiry }`. JWE prevents client-side token exposure. `jose` produces compact tokens well within the 4 KB cookie limit for this payload size. |
+| `date-fns` | 4.1.0 | Deadline countdown math (`intervalToDuration`, `formatDistanceToNow`, `isBefore`) | Zero-dependency, tree-shakeable, works in Server and Client Components. `intervalToDuration` returns `{ days, hours, minutes }` from two Date objects — exactly what a countdown display needs. Already the community standard for date math in React projects. No runtime beyond what is already in the bundle. |
+| Vercel cron (config only) | N/A | Trigger `/api/cron/sync` daily for all users | Already researched for v1.0; adding cron entry to `vercel.json` is the only change. No new npm package. |
+| React 19 `useOptimistic` | (built-in, React 19.2.3) | Optimistic state for conflict resolution decisions | Already installed. `useOptimistic` handles the "user picks keep-mine vs keep-theirs" flow with immediate UI feedback before the API round-trip completes. No library needed. |
 
-**Cookie size analysis:** A typical Google refresh_token is ~200 chars, access_token ~200 chars, expiry is a number. JWE overhead adds ~200 chars. Total per cookie: ~700 bytes — well within the 4096-byte limit per cookie. Two cookies = ~1400 bytes total. No chunking needed.
+### No New Libraries Required For
 
-### Scheduled Background Sync
+| Feature | Why No New Library |
+|---------|-------------------|
+| Deduplication dashboard UI | Drizzle queries already return `gcalCalendarId` + event metadata from existing tables. The dashboard is a Server Component that reads from DB and renders a diff-style list with Tailwind. No component library needed. |
+| Conflict resolution modal | Native HTML `<dialog>` element + Tailwind classes handles the overlay. React 19 `useOptimistic` + Server Actions handles the mutation. No modal library (Radix, shadcn) needed for a single-use dialog in this app. |
+| Countdown timer (client-side tick) | A `useEffect` with `setInterval(1000)` + `date-fns` `intervalToDuration` is 10 lines of code. No countdown timer library is warranted. |
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Vercel Cron Jobs | (built-in, no package) | Trigger daily sync via HTTP GET to `/api/cron/sync` | Native to Vercel, zero dependencies, configured in `vercel.json`. Invokes a Route Handler on a schedule. |
+---
 
-**Critical constraint — Hobby plan cron frequency:**
-Verified against Vercel docs (2026-03-11):
-- **Hobby plan**: once per day maximum. Any expression that runs more than once per day fails deployment with a hard error.
-- **Pro plan**: once per minute minimum interval, per-minute precision.
-- **Timing precision on Hobby**: A `0 8 * * *` expression triggers anywhere between 08:00 and 08:59 — ±59 minutes of drift.
+## Auto-Sync: Vercel Cron Configuration Details
 
-For a personal student calendar sync, once-per-day is acceptable. If the user wants hourly or on-demand sync, the manual trigger (button in UI) covers it without requiring Pro. Do not design the cron to run more than daily on Hobby.
+**No new npm package.** The only changes are:
 
-**Function timeout — Fluid Compute:**
-As of April 23, 2025, Fluid Compute is **enabled by default for all new Vercel projects** (including Hobby). With Fluid Compute:
-- Hobby: 300s (5 minutes) default and maximum duration
-- Without Fluid Compute (legacy): Hobby is 10s default, 60s max
+1. Add a `"crons"` entry to `vercel.json` (already present in the project).
+2. Add a `GET` export to a new `/api/cron/sync/route.ts` that:
+   - Validates `Authorization: Bearer ${process.env.CRON_SECRET}` (Vercel injects this automatically)
+   - Queries all users from Neon via Drizzle
+   - Calls the existing sync logic from `gcalSync.ts` and `schoolMirror.ts` per user
+   - Returns 200 to signal completion
 
-A sync function that fetches Canvas ICS + reads school GCal + writes to personal GCal should complete well within 60s, let alone 300s. No special timeout configuration required on Hobby.
+**Critical constraints verified against Vercel docs (2026-03-16):**
 
-**vercel.json cron configuration:**
+- Hobby plan: cron runs at most once per day. Expressions triggering more frequently fail deployment with a hard error.
+- Vercel injects timing drift of up to 59 minutes on Hobby (e.g., `0 8 * * *` fires anywhere from 08:00 to 08:59 UTC).
+- Vercel does NOT retry failed cron invocations. The handler must catch and log errors internally.
+- Cron endpoint receives `vercel-cron/1.0` as user-agent — useful for differentiating invocations in logs.
+- With Fluid Compute enabled by default (April 2025): Hobby max function duration is **300s** — more than enough for iterating all users sequentially.
+- Cron events can be delivered more than once (idempotency required). The existing dedup logic in `gcalSync.ts` already handles this via `hasChanged()` checks.
+
+**vercel.json entry:**
 ```json
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/cron/sync",
@@ -78,31 +91,107 @@ A sync function that fetches Canvas ICS + reads school GCal + writes to personal
   ]
 }
 ```
-The cron handler must verify a `CRON_SECRET` env var against the `Authorization` header that Vercel injects, to prevent unauthorized invocations.
 
-### Deployment
+**Route handler skeleton:**
+```typescript
+// app/api/cron/sync/route.ts
+import type { NextRequest } from 'next/server';
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Vercel | (platform, no package) | Hosting | Native Next.js deployment. Zero-config for App Router. Free Hobby plan covers this use case. Built-in cron, env var management, preview deployments. |
-| `@vercel/analytics` | latest | Optional: usage analytics | Add only if desired. Not required for the sync feature. |
+export const maxDuration = 300;
 
-**Why NOT Railway, Render, or Fly.io:**
-Those platforms require more configuration for a Next.js App Router app and don't provide built-in cron. Vercel is purpose-built for Next.js and the simplest path.
+export async function GET(request: NextRequest) {
+  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  // fetch all users with canvasIcsUrl set, run sync per user
+}
+```
 
-**Why NOT self-hosting:**
-Adds operational burden that isn't justified for a personal student tool. Vercel Hobby is free.
+**Multi-user iteration concern:** With a small user count (hobby-scale personal tool), sequential iteration is fine within 300s. If the user count grows to hundreds, the pattern should change to per-user fan-out (spawn a separate fetch call per user, run in parallel). Vercel docs recommend splitting cron jobs into smaller units if they approach the duration limit. Flag this in PITFALLS.
+
+---
+
+## Countdown UI: date-fns 4.1.0
+
+**Install:** `npm install date-fns`
+
+**Functions used:**
+
+| Function | Purpose |
+|----------|---------|
+| `intervalToDuration(interval)` | Returns `{ years, months, days, hours, minutes, seconds }` between two dates |
+| `isBefore(date, dateToCompare)` | Check if deadline has passed (render "overdue" state) |
+| `formatDistanceToNow(date, { addSuffix: true })` | Human-readable "in 3 days" for less-urgent items |
+
+**Client component pattern:**
+```typescript
+'use client';
+import { intervalToDuration, isBefore } from 'date-fns';
+import { useState, useEffect } from 'react';
+
+// setInterval(1000) in useEffect for live countdown
+// intervalToDuration({ start: now, end: deadline }) for display
+```
+
+**Important behavior note (verified):** In `date-fns@4.1.0`, `intervalToDuration` omits the `seconds` field when seconds equal zero. Code that destructures `{ days, hours, minutes, seconds }` must handle `seconds` being `undefined`. Use `?? 0`.
+
+**Why not Luxon or Day.js:** `date-fns` is already the tree-shakeable standard. Luxon adds a Moment.js-style mutable object model (heavier). Day.js is similarly capable but has a plugin system for durations that requires additional imports. `date-fns` is the correct choice for a project that needs `intervalToDuration` and nothing else exotic.
+
+**Why not native Intl.RelativeTimeFormat:** `Intl.RelativeTimeFormat` only formats a single unit ("3 days"). It cannot decompose a duration into `{ days, hours, minutes }` for a combined "2d 4h 30m" countdown display. `date-fns` `intervalToDuration` is needed for that.
+
+---
+
+## Deduplication Dashboard: No New Libraries
+
+The deduplication dashboard shows which Canvas events are already synced vs. pending. The data source is:
+
+- `courseTypeCalendars` table: has `gcalCalendarId` per `(userId, courseName, eventType)` — indicates a sub-calendar was created (sync has run at least once)
+- `courseSelections.gcalCalendarId`: populated after first sync
+- The sync engine already tracks `inserted` / `updated` / `skipped` counts in `SyncSummary`
+
+**Implementation approach:**
+- Server Component reads from DB via Drizzle (already wired)
+- Client Component renders a two-column diff: "Already in Calendar" (events with GCal event IDs) vs "Will be added" (events parsed from ICS but not yet in GCal)
+- Tailwind CSS v4 provides the diff-style row styling (green/gray badges)
+- No new table needed for a simple dashboard — the existing `syncJobs` Map contains last-run summary data. A `syncHistory` DB table is optional but deferred.
+
+---
+
+## Conflict Resolution UI: React 19 Built-Ins Only
+
+A "conflict" in this app is: Canvas ICS data for an event differs from what is currently in Google Calendar (e.g., title changed, date shifted). `gcalSync.ts` already has `hasChanged()` that detects this — currently it auto-updates. The UI change exposes these decisions to the user before committing.
+
+**Stack additions needed: zero.**
+
+React 19 (already installed) provides:
+
+| Built-in | Role |
+|----------|------|
+| `useOptimistic` | Immediate UI feedback when user picks "keep mine" or "accept Canvas" before server confirms |
+| Server Actions (native to Next.js App Router) | Mutation endpoint to persist conflict resolution decision in `eventOverrides` table |
+| `useActionState` | Track pending/error state of the resolution action |
+
+**Pattern:**
+```typescript
+// 'use client'
+const [optimisticResolutions, addResolution] = useOptimistic(
+  resolutions,
+  (state, { uid, choice }) => state.map(r => r.uid === uid ? { ...r, choice } : r)
+);
+```
+
+The modal is a native `<dialog>` element with `showModal()` / `close()`. One custom hook, no library. Tailwind handles the overlay styles.
 
 ---
 
 ## Installation
 
 ```bash
-# New dependencies for this milestone
-npm install arctic jose
+# Only one new dependency for v1.1
+npm install date-fns
 ```
 
-No new dev dependencies are needed — existing Jest + TypeScript config handles testing of the new code.
+No new dev dependencies. Existing ts-jest config handles `date-fns` (it ships with ESM + CJS, CJS is used by ts-jest).
 
 ---
 
@@ -110,10 +199,11 @@ No new dev dependencies are needed — existing Jest + TypeScript config handles
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `arctic` + `jose` (raw OAuth) | `next-auth@beta` (Auth.js v5) | When you have a single-identity login flow, don't need multi-account token storage, and want a batteries-included session layer. Not appropriate here. |
-| `next-auth@4` (stable) | — | When your auth needs fit the library's single-session model. Still unsuitable here for the multi-account reason. |
-| Vercel Cron Jobs | Inngest / trigger.dev / QStash | When you need sub-hourly jobs, retry logic, job queues, or background tasks that outlast HTTP request lifecycles. Overkill for a daily calendar sync. |
-| `jose` for cookie encryption | `iron-session` (v8.0.4) | `iron-session` is also a valid choice and uses the same JWE approach internally. Choose `iron-session` if you want a slightly higher-level API. Choose raw `jose` for full control over cookie structure and naming. Either works; `jose` is more explicit for the two-cookie pattern. |
+| `date-fns@4.1.0` | `luxon@3.x` | When you need IANA timezone manipulation throughout the app, not just duration display. Overkill here — the countdown is local time only. |
+| `date-fns@4.1.0` | `dayjs` with `duration` plugin | When bundle size is critical (Day.js is smaller). Negligible difference for this app since `date-fns` is tree-shaken. |
+| Native `<dialog>` + Tailwind | `@radix-ui/react-dialog` or `shadcn/ui` | When you need a full accessible component system (focus trap, aria, portal). For a single conflict-resolution dialog in an internal tool, native `<dialog>` is sufficient and adds zero dependencies. |
+| React 19 `useOptimistic` | SWR / TanStack Query | When you have a complex data-fetching layer with cache invalidation. This app uses Server Components + Server Actions — no client cache layer is needed. |
+| Vercel Cron (no package) | `inngest` or `trigger.dev` | When you need per-user job queues, retries, sub-minute schedules, or fan-out orchestration. Daily sync of a personal-scale user list does not need this. |
 
 ---
 
@@ -121,31 +211,38 @@ No new dev dependencies are needed — existing Jest + TypeScript config handles
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `next-auth@beta` for this project | Beta tag is permanent as of 2026-03-11 (latest stable is still v4). Multi-account token storage fights the library's session model. | `arctic` + `jose` |
-| `passport` + `passport-google-oauth20` | Designed for Express. Requires middleware pipeline that doesn't exist in Next.js App Router Route Handlers. Forces server-side session state incompatible with Vercel serverless. | `arctic` |
-| `google-auth-library` standalone for OAuth flow | `googleapis` (already installed) re-exports `google-auth-library`. Using it separately creates a duplicate dependency. The OAuth2Client in `googleapis` handles token refresh natively. Use `arctic` for the authorization code flow and `googleapis`'s OAuth2Client for API calls with stored tokens. | `arctic` (flow) + `googleapis` OAuth2Client (API calls) |
-| Vercel KV / Redis for token storage | Adds a paid dependency and operational surface for data that fits in two cookies. Cookies are sufficient at this token payload size. | `jose`-encrypted HttpOnly cookies |
-| Cron expressions more frequent than `0 X * * *` on Hobby | Will fail deployment with a hard error. Vercel Hobby enforces once-per-day maximum. | Manual trigger endpoint + once-daily auto-sync |
+| `react-countdown` or similar countdown npm packages | A `useEffect` + `date-fns` `intervalToDuration` is 10 lines. Adding a package for this is over-engineering for a single use case. | `date-fns` + `useEffect` |
+| Radix UI / shadcn for the conflict modal | Adds ~15 kB of peer dependencies and significant install complexity for a feature that needs one `<dialog>` element. | Native `<dialog>` + Tailwind v4 |
+| `inngest` or `trigger.dev` for cron | Both require external service accounts, webhook registration, and add dependencies. Vercel Cron is native, free, and sufficient for once-daily scheduling. | Vercel `vercel.json` cron entry |
+| A `syncHistory` DB table (new) in this milestone | Adds schema migration work. The dedup dashboard can use existing `syncJobs` in-memory state for the current session and existing DB fields for persistent state. Defer a full history table to a future milestone. | Existing `courseTypeCalendars` + `courseSelections.gcalCalendarId` |
+| `next-auth` in any version | Multi-account OAuth requirement still incompatible with NextAuth session model. See v1.0 STACK.md. | `arctic` + `jose` (already installed) |
+| Cron expressions more frequent than `0 X * * *` on Hobby | Fails deployment with a hard error. | Once-daily expression only |
 
 ---
 
-## Stack Patterns
+## Stack Patterns for v1.1
 
-**Token storage pattern (two Google accounts):**
-- Cookie `gtoken-school`: JWE-encrypted `{ access_token, refresh_token, expiry }` for school Google account
-- Cookie `gtoken-personal`: JWE-encrypted `{ access_token, refresh_token, expiry }` for personal Google account
-- Both cookies: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`
-- Encryption key: `JOSE_SECRET` env var (32-byte random string)
+**Cron route handler (all users):**
+- Query `users` table: `WHERE canvasIcsUrl IS NOT NULL`
+- Iterate users, call shared sync function per user (same logic as manual sync)
+- Catch and log per-user errors without aborting the loop — one user's bad token must not block others
+- Return `200` with a JSON summary: `{ processed: N, errors: [] }`
 
-**OAuth flow pattern (per account):**
-1. `/api/auth/[account]/start` — generates state + PKCE verifier, stores in short-lived cookie, redirects to Google
-2. `/api/auth/[account]/callback` — validates state, exchanges code for tokens via `arctic`, writes `gtoken-[account]` cookie
-3. `[account]` is `school` or `personal` — two independent flows, two stored cookies
+**Countdown component (Client Component):**
+- Props: `deadline: Date`, `label: string`
+- State: `{ days, hours, minutes }` from `intervalToDuration`
+- `useEffect`: `setInterval(60_000)` — minute-level precision is sufficient for a deadline countdown; 1-second ticks are unnecessary
+- Render: color-coded badge — green if `>= 7 days`, yellow if `2–6 days`, red if `< 2 days`, strikethrough if `isBefore(deadline, now)`
 
-**Sync function pattern:**
-- `/api/cron/sync` Route Handler: reads both token cookies, refreshes access tokens if expired (via `googleapis` OAuth2Client), runs Canvas ICS fetch + GCal operations
-- `export const maxDuration = 60;` — explicit cap to 60s (well within Hobby's 300s Fluid Compute limit, conservative for cost)
-- Protected by `Authorization: Bearer ${CRON_SECRET}` check
+**Dedup dashboard data flow:**
+- Server Component fetches Canvas ICS events + queries `courseTypeCalendars` for which (course, type) pairs already have a GCal calendar
+- Pass `{ synced: CourseEvent[], pending: CourseEvent[] }` as props to Client Component
+- Client renders two-pane view with Tailwind
+
+**Conflict resolution flow:**
+1. Server Action `resolveConflict(uid: string, choice: 'keep-gcal' | 'accept-canvas')` writes to `eventOverrides` table
+2. Client calls action via `useTransition` + `useOptimistic` for immediate visual update
+3. Next manual or auto sync reads `eventOverrides` and respects the choice
 
 ---
 
@@ -153,25 +250,26 @@ No new dev dependencies are needed — existing Jest + TypeScript config handles
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `arctic@3.7.0` | Node.js 18+, Next.js 13+ App Router | Uses native Fetch API. No polyfill needed on Vercel (Node.js 20 runtime). |
-| `jose@6.2.1` | Node.js 16+, Edge Runtime | Works in both serverless and edge runtimes. Safe for Next.js middleware if needed later. |
-| Vercel Cron | Next.js App Router Route Handlers | Invokes via HTTP GET. Route Handler must export `GET`. No special package needed. |
-| `arctic@3.x` | `googleapis@171.x` | No conflict. `arctic` handles the authorization code exchange; `googleapis` OAuth2Client takes over for API calls using the stored tokens. |
+| `date-fns@4.1.0` | Node.js 18+, React 19 | Ships CJS + ESM. ts-jest uses CJS path automatically. No transform config change needed. |
+| `date-fns@4.1.0` | Next.js 16 App Router | Works in Server Components (pure TS), Client Components, and Route Handlers. No `'use client'` dependency. |
+| `date-fns@4.1.0` | TypeScript 5 | Ships its own types. No `@types/date-fns` needed (not a separate package for v4). |
+| React 19 `useOptimistic` | Next.js 16 App Router | Stable in React 19 (released Dec 2024). Already installed. |
+| Vercel Cron | Next.js 16 Route Handlers | `GET` export required. No additional configuration in `next.config` needed. |
 
 ---
 
 ## Sources
 
-- [Vercel Cron Jobs: Usage and Pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing) — confirmed Hobby = once per day, Pro = once per minute (HIGH confidence)
-- [Vercel Fluid Compute docs](https://vercel.com/docs/fluid-compute) — confirmed enabled by default April 23 2025, Hobby gets 300s max duration with Fluid Compute (HIGH confidence)
-- [Vercel Function Duration docs](https://vercel.com/docs/functions/configuring-functions/duration) — confirmed duration table for Fluid vs non-Fluid (HIGH confidence)
-- [Arctic v3 Google provider](https://arcticjs.dev/providers/google) — confirmed API surface, refresh token handling (HIGH confidence)
-- [Auth.js v5 migration guide](https://authjs.dev/getting-started/migrating-to-v5) — confirmed still requires `@beta` tag install (HIGH confidence)
-- npm registry: `arctic@3.7.0`, `jose@6.2.1`, `iron-session@8.0.4`, `next-auth` latest = `4.24.13`, beta = `5.0.0-beta.30` — verified 2026-03-11 (HIGH confidence)
-- [Next.js authentication guide](https://nextjs.org/docs/pages/building-your-application/authentication) — recommends `jose` or `iron-session` for session encryption (HIGH confidence)
-- [Vercel Hobby plan limits](https://vercel.com/docs/plans/hobby) — confirmed plan features and storage options (HIGH confidence)
+- [Vercel Cron Jobs docs](https://vercel.com/docs/cron-jobs) — confirmed GET-based invocation, vercel.json config format (HIGH confidence)
+- [Vercel Managing Cron Jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs) — confirmed CRON_SECRET pattern, Authorization Bearer header, Hobby ±59 min drift, no-retry behavior, idempotency requirement (HIGH confidence)
+- [Vercel Functions Limits](https://vercel.com/docs/functions/limitations) — confirmed Hobby maxDuration = 300s with Fluid Compute (HIGH confidence)
+- [Vercel Cron Usage & Pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing) — confirmed Hobby = once per day maximum, 100 cron jobs per project (HIGH confidence)
+- [date-fns npm](https://www.npmjs.com/package/date-fns) — confirmed latest version 4.1.0 (HIGH confidence)
+- [date-fns changelog](https://github.com/date-fns/date-fns/blob/main/CHANGELOG.md) — confirmed `intervalToDuration` omits `seconds: 0` in v4.1.0 (MEDIUM confidence — changelog referenced, behavior verified in issue tracker)
+- [React 19 release blog](https://react.dev/blog/2024/12/05/react-19) — confirmed `useOptimistic` is stable in React 19 (HIGH confidence)
+- [React useOptimistic docs](https://react.dev/reference/react/useOptimistic) — confirmed API signature and usage with Server Actions (HIGH confidence)
 
 ---
 
-*Stack research for: Google OAuth multi-account + scheduled sync + Vercel deployment on Next.js 16*
-*Researched: 2026-03-11*
+*Stack research for: v1.1 — auto-sync, countdown UI, dedup dashboard, conflict resolution*
+*Researched: 2026-03-16*

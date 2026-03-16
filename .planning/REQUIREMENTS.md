@@ -3,9 +3,7 @@
 **Defined:** 2026-03-11
 **Core Value:** All of a student's deadlines and events — from Canvas, school Google, and personal Google — visible in one calendar on one account.
 
-## v1 Requirements
-
-Requirements for initial release. Each maps to roadmap phases.
+## v1 Requirements (Complete)
 
 ### Authentication
 
@@ -34,14 +32,50 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SYNC-03**: After sync, shows summary (X created, Y updated, Z skipped/failed)
 - [x] **SYNC-04**: Clear error messages when auth fails, feed is invalid, or API quota is hit
 
+### Event Type Grouping
+
+- [x] **GROUP-01**: User can opt in to per-type sub-calendar grouping (Assignments, Quizzes, Discussions, Events)
+- [x] **GROUP-02**: Each (course, type) pair gets its own Google Calendar sub-calendar
+- [x] **GROUP-03**: Sync routes events to the correct type sub-calendar
+- [x] **GROUP-04**: User can toggle each event type on/off per course
+- [x] **GROUP-05**: AI classifier assigns event types from Canvas ICS data
+- [x] **GROUP-06**: Type grouping settings persist across sessions
+
+## v1.1 Requirements
+
+Requirements for the Automation & Visibility milestone. Each maps to roadmap phases.
+
+### Auto-Sync
+
+- [ ] **CRON-01**: Daily Vercel cron automatically syncs Canvas and school calendar for every registered user without manual action
+- [ ] **CRON-02**: Dashboard shows accurate last-synced timestamp and status after a background cron run (not just after manual syncs)
+- [ ] **CRON-03**: A single user's auth failure or sync error does not abort the cron loop for other users
+
+### Deadline Countdown
+
+- [ ] **COUNTDOWN-01**: Dashboard shows upcoming Canvas deadlines grouped into Overdue / Due Today / Due Tomorrow / Due This Week
+
+### Deduplication
+
+- [ ] **DEDUP-01**: User can see a pre-sync summary (N would be created / N updated / N unchanged) before committing a sync
+- [ ] **DEDUP-02**: Synced event snapshots are stored in DB so the dedup panel loads without additional Google Calendar API calls
+
+### Conflict Detection
+
+- [ ] **CONFLICT-01**: Dashboard shows how many synced events have been modified in Google Calendar since the last sync
+- [ ] **CONFLICT-02**: User can view a list of those conflicted events (Canvas title, due date, when GCal was modified)
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
 ### Automation
 
-- **AUTO-01**: Automatic scheduled sync via cron (daily on Hobby, hourly on Pro)
-- **AUTO-02**: User can configure sync frequency
+- **AUTO-01**: User can configure sync frequency (e.g., every 6 hours on Pro plan)
+
+### Conflict Resolution
+
+- **CONFLICT-03**: User can resolve individual conflicts (keep Canvas version, keep GCal version, or skip)
 
 ### Polish
 
@@ -59,6 +93,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | AI scheduling suggestions | Orthogonal to core problem; adds cost and scope |
 | Manual event editing in app | Creates conflicting source of truth; sync is a one-way pipe |
 | Shared / team calendars | App is personal-use; multi-tenancy adds complexity |
+| Per-event conflict resolution UI | High complexity; scope to detect+display in v1.1, decisions in v1.2 |
+| Email/push notifications after sync | Adds infrastructure (email service); deferred to future milestone |
 
 ## Traceability
 
@@ -81,12 +117,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SYNC-02 | Phase 3 | Complete |
 | SYNC-03 | Phase 3 | Complete |
 | SYNC-04 | Phase 3 | Complete |
+| GROUP-01 | Phase 4 | Complete |
+| GROUP-02 | Phase 4 | Complete |
+| GROUP-03 | Phase 4 | Complete |
+| GROUP-04 | Phase 4 | Complete |
+| GROUP-05 | Phase 4 | Complete |
+| GROUP-06 | Phase 4 | Complete |
+| CRON-01 | Phase 5 | Pending |
+| CRON-02 | Phase 5 | Pending |
+| CRON-03 | Phase 5 | Pending |
+| COUNTDOWN-01 | Phase 5 | Pending |
+| DEDUP-01 | Phase 6 | Pending |
+| DEDUP-02 | Phase 6 | Pending |
+| CONFLICT-01 | Phase 7 | Pending |
+| CONFLICT-02 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 15 total
-- Mapped to phases: 15
+- v1 requirements: 21 total — all complete ✓
+- v1.1 requirements: 8 total
+- Mapped to phases: 8
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after roadmap creation*
+*Last updated: 2026-03-16 after v1.1 milestone start*

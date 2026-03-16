@@ -1,49 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.1
+milestone_name: Automation & Visibility
 status: planning
-stopped_at: Completed 04-event-type-grouping 04-03-PLAN.md — routing verification complete, 138 tests pass
-last_updated: "2026-03-15T23:20:27.934Z"
-last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
-progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: planning
-stopped_at: "Completed 03-reliability-and-deploy 03-02-PLAN.md — v1 milestone complete, app live at https://canvas-to-gcal.vercel.app"
-last_updated: "2026-03-15T19:41:14.519Z"
-last_activity: 2026-03-11 — Roadmap created, ready to plan Phase 1
+stopped_at: Roadmap created for v1.1 — phases 5, 6, 7 defined; ready to plan Phase 5
+last_updated: "2026-03-16T00:00:00.000Z"
+last_activity: 2026-03-16 — v1.1 roadmap created, ready to plan Phase 5
 progress:
   total_phases: 3
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11)
+See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** All of a student's deadlines and events — from Canvas, school Google, and personal Google — visible in one calendar on one account.
-**Current focus:** Phase 1 — Auth Foundation
+**Current focus:** Phase 5 — Auto-Sync and Countdown
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 5 — Auto-Sync and Countdown
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-16 — Milestone v1.1 started
+Status: Roadmap defined, ready to plan Phase 5
+Last activity: 2026-03-16 — v1.1 roadmap created
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -126,10 +110,19 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 04-event-type-grouping]: Type grouping always-on: replaced typeGroupingEnabled boolean with 4 per-type columns (sync_assignments/quizzes/discussions/events), all default true; no master toggle
 - [Phase 04-event-type-grouping]: Announcements grouped under syncEvents toggle in UI and TYPE_TOGGLE_MAP — no separate announcement checkbox
 - [Phase 04-event-type-grouping]: Plan 04-04 pre-implemented routing required by 04-03 using always-on EnabledEventTypes design instead of boolean typeGroupingEnabled toggle — GROUP-03 and GROUP-04 fully satisfied
+- [v1.1 Roadmap]: Cron route must set `export const maxDuration = 300` and use CRON_SECRET header auth — never call getSession() from a cron invocation (no browser cookie present)
+- [v1.1 Roadmap]: Each user's sync in the cron loop is wrapped in an independent try/catch — one user's token failure must not abort remaining users
+- [v1.1 Roadmap]: lastSyncedAt migrates from localStorage to syncLog DB table — cron results are DB-authoritative; in-memory syncJobs Map cannot be used for cron results
+- [v1.1 Roadmap]: CountdownPanel is client-only ('use client') — server-side rendering of time-remaining strings causes React hydration errors for non-UTC users
+- [v1.1 Roadmap]: DedupePanel reads from syncedEvents DB mirror, not live GCal API — prevents quota drain on every dashboard page view
+- [v1.1 Roadmap]: syncToken incremental sync required before enabling multi-user cron loop — prevents GCal per-minute quota exhaustion at 10+ users
+- [v1.1 Roadmap]: Conflict detection (Phase 7) depends on syncLog existing (Phase 5) — syncConflicts table requires lastSyncAt to compare against GCal updated timestamp
+- [v1.1 Roadmap]: Per-event conflict resolution UI (keep Canvas / keep GCal) scoped to v1.2, not Phase 7 — Phase 7 delivers detect-and-display only
 
 ### Roadmap Evolution
 
 - Phase 4 added: Event type grouping — sub-calendars per course and type
+- Phases 5-7 added: Milestone v1.1 — Auto-Sync and Countdown, Deduplication Preview, Conflict Detection
 
 ### Pending Todos
 
@@ -140,9 +133,11 @@ None yet.
 - [Phase 1]: OAuth app must be published to Production status (not left in Testing mode) before deploying — Testing mode causes 7-day refresh token expiry
 - [Phase 1]: Some school institutions restrict third-party OAuth on Google Workspace accounts — onboarding must handle this with a clear fallback message
 - [Phase 2]: Existing `CONCURRENCY = 3` pattern in `gcalSync.ts` will time out on realistic datasets — must be replaced with batch API calls before enabling scheduled sync
+- [Phase 5]: syncToken incremental sync storage schema (per-subcalendar token keyed by (userId, calendarId)) and 410 Gone recovery flow need explicit planning before writing the cron user loop
+- [Phase 7]: GCal `updated` timestamp false-positive risk — if `syncCanvasEvents` sets `updated` on every `events.patch` call, every synced event will appear as a conflict; needs targeted test before shipping conflict detection
 
 ## Session Continuity
 
-Last session: 2026-03-15T23:20:27.854Z
-Stopped at: Completed 04-event-type-grouping 04-03-PLAN.md — routing verification complete, 138 tests pass
+Last session: 2026-03-16T00:00:00.000Z
+Stopped at: v1.1 roadmap created — phases 5, 6, 7 defined; ready to plan Phase 5
 Resume file: None

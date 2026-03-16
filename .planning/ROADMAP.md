@@ -87,3 +87,50 @@ Plans:
 - [ ] 04-02-PLAN.md — CanvasEvent.eventType field + parseCanvasFeed population + ensureTypeSubCalendar helper
 - [ ] 04-03-PLAN.md — syncCanvasEvents typeGroupingEnabled routing branch + test coverage
 - [ ] 04-04-PLAN.md — /api/user-settings PATCH route + TypeGroupingToggle UI + SyncDashboard wiring
+
+---
+
+## Milestone v1.1 — Automation & Visibility
+
+**Goal:** Make sync automatic and give users visibility into what's happening and what's coming up.
+
+### Phase 5: Auto-Sync and Countdown
+**Goal**: Syncs run automatically every day for all users and the dashboard surfaces when the last sync ran plus what deadlines are coming up
+**Depends on**: Phase 4
+**Requirements**: CRON-01, CRON-02, CRON-03, COUNTDOWN-01
+**Success Criteria** (what must be TRUE):
+  1. Canvas and school calendar events update in the user's Google Calendar daily without the user pressing "Sync Now"
+  2. The dashboard "Last synced" timestamp reflects background cron runs, not only manual syncs — it reads from the DB, not localStorage
+  3. One user's expired or broken token causes that user's sync to be recorded as failed, but all other users in the cron run complete normally
+  4. The dashboard shows upcoming Canvas deadlines grouped into Overdue / Due Today / Due Tomorrow / Due This Week, calculated in the user's local timezone
+**Plans**: TBD
+
+### Phase 6: Deduplication Preview
+**Goal**: Users can see exactly what a sync will do before it runs, and that preview loads quickly without draining Google Calendar API quota
+**Depends on**: Phase 5
+**Requirements**: DEDUP-01, DEDUP-02
+**Success Criteria** (what must be TRUE):
+  1. Expanding the deduplication panel shows counts of how many events would be created, updated, or left unchanged by the next sync — without triggering an actual sync
+  2. The dedup panel loads in under 500ms regardless of how many courses the user has, because it reads from a DB mirror rather than making live Google Calendar API calls
+**Plans**: TBD
+
+### Phase 7: Conflict Detection
+**Goal**: Users can see when a Canvas event they have manually edited in Google Calendar no longer matches the Canvas source, so they can decide which version to keep
+**Depends on**: Phase 6
+**Requirements**: CONFLICT-01, CONFLICT-02
+**Success Criteria** (what must be TRUE):
+  1. The dashboard shows a count of synced events where the Google Calendar copy has been modified since the last sync
+  2. Expanding the conflict panel shows a list of those events with the Canvas title, due date, and when the Google Calendar copy was last modified
+**Plans**: TBD
+
+## Progress (v1.1)
+
+**Execution Order:**
+Phases execute in numeric order: 5 → 6 → 7
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 4. Event Type Grouping | 4/4 | Complete | 2026-03-16 |
+| 5. Auto-Sync and Countdown | 0/TBD | Not started | - |
+| 6. Deduplication Preview | 0/TBD | Not started | - |
+| 7. Conflict Detection | 0/TBD | Not started | - |

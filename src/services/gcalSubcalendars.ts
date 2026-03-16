@@ -8,7 +8,27 @@ import { calendar_v3 } from 'googleapis';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { courseSelections, schoolCalendarSelections, courseTypeCalendars } from '@/lib/db/schema';
-import { CanvasEventType } from './eventTypeClassifier';
+
+/**
+ * Maps event type labels to consistent Google Calendar colorIds.
+ * Each type always gets the same color regardless of course.
+ * Unrecognized types fall back to Lavender (1).
+ */
+const TYPE_COLOR_MAP: Record<string, string> = {
+  Assignments: '9',   // Blueberry
+  Quizzes:     '11',  // Tomato
+  Discussions: '2',   // Sage
+  Events:      '6',   // Tangerine
+  Announcements: '8', // Graphite
+  Exams:       '3',   // Grape
+  Labs:        '7',   // Peacock
+  Lectures:    '5',   // Banana
+  Projects:    '4',   // Flamingo
+};
+
+function colorIdForType(eventType: string): string {
+  return TYPE_COLOR_MAP[eventType] ?? '1'; // Lavender fallback
+}
 
 /**
  * Ensure a sub-calendar exists for a given Canvas course on the personal account.
@@ -129,14 +149,14 @@ export async function ensureMirrorSubCalendar(
  * Checks courseTypeCalendars table first — if a calendarId is stored, returns it without any API call.
  * If not found, creates a new calendar via the Google Calendar API and stores the ID.
  *
- * Calendar naming: `Canvas - ${courseName} — ${typeLabel}s`
- * Examples: (Math 101, assignment) → 'Canvas - Math 101 — Assignments'
- *           (CS 201, quiz) → 'Canvas - CS 201 — Quizzes'
+ * Calendar naming: `Canvas - ${courseName} — ${eventType}`
+ * Examples: (Math 101, Assignments) → 'Canvas - Math 101 — Assignments'
+ *           (CS 201, Quizzes) → 'Canvas - CS 201 — Quizzes'
  *
  * @param calendar - Google Calendar API client (authenticated to personal account)
  * @param userId - The user's internal DB ID
  * @param courseName - The Canvas course name
- * @param eventType - The event type bucket (assignment, quiz, discussion, announcement, event)
+ * @param eventType - The human-readable category label (e.g. 'Assignments', 'Lab Reports')
  * @param colorId - Google Calendar colorId (1-11 palette) to assign to the sub-calendar
  * @returns The Google Calendar ID of the type sub-calendar
  */
@@ -144,7 +164,7 @@ export async function ensureTypeSubCalendar(
   calendar: calendar_v3.Calendar,
   userId: number,
   courseName: string,
-  eventType: CanvasEventType,
+  eventType: string,
   colorId: string
 ): Promise<string> {
   // Check DB for an existing type sub-calendar ID
@@ -160,15 +180,11 @@ export async function ensureTypeSubCalendar(
     return existing.gcalCalendarId;
   }
 
-  // Build calendar name: capitalize first letter + pluralize
-  // Handle irregular plurals: quiz → Quizzes (ends in z → add zes)
-  const base = eventType.charAt(0).toUpperCase() + eventType.slice(1);
-  const typeLabel = base.endsWith('z') ? base + 'zes' : base + 's';
-
   // Create a new type sub-calendar on the personal Google account
+  // eventType is already a human-readable plural label like 'Assignments', 'Lab Reports'
   const insertRes = await calendar.calendars.insert({
     requestBody: {
-      summary: `Canvas - ${courseName} — ${typeLabel}`,
+      summary: `Canvas - ${courseName} — ${eventType}`,
     },
   });
 

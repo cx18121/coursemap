@@ -33,6 +33,7 @@ const makeEvent = (uid: string, courseName: string) => ({
   end: new Date("2026-03-01T11:00:00Z"),
   courseName,
   uid,
+  eventType: 'Events',
 });
 
 const groupedEvents: GroupedEvents = {

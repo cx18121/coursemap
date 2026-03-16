@@ -3,7 +3,7 @@
  * Uses mocked googleapis and drizzle to avoid real API calls
  *
  * Design: type grouping is ALWAYS ON. Events route to per-(course, type) sub-calendars.
- * Per-type filters skip events of disabled types.
+ * Per-type filters are loaded from courseTypeSettings DB table; default (no row) = enabled.
  */
 
 // Mock googleapis before importing anything that uses it
@@ -42,18 +42,22 @@ jest.mock('@/lib/tokens', () => ({
   getFreshAccessToken: mockGetFreshAccessToken,
 }));
 
-// Mock @/lib/db
+// Mock @/lib/db — support insert().values().onConflictDoNothing() chain
+const mockOnConflictDoNothing = jest.fn().mockResolvedValue(undefined);
+const mockValues = jest.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
 const mockDb = {
   query: {
     courseTypeCalendars: {
       findFirst: jest.fn(),
     },
+    courseTypeSettings: {
+      findMany: jest.fn(),
+    },
   },
   update: jest.fn().mockReturnThis(),
   set: jest.fn().mockReturnThis(),
   where: jest.fn().mockReturnThis(),
-  insert: jest.fn().mockReturnThis(),
-  values: jest.fn().mockResolvedValue(undefined),
+  insert: jest.fn().mockReturnValue({ values: mockValues }),
 };
 jest.mock('@/lib/db', () => ({
   db: mockDb,
@@ -73,6 +77,13 @@ jest.mock('@/lib/db/schema', () => ({
     eventType: 'eventType',
     gcalCalendarId: 'gcalCalendarId',
   },
+  courseTypeSettings: {
+    userId: 'userId',
+    courseName: 'courseName',
+    eventType: 'eventType',
+    enabled: 'enabled',
+    colorId: 'colorId',
+  },
 }));
 
 import { syncCanvasEvents, SyncProgress } from './gcalSync';
@@ -89,7 +100,7 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
     end: new Date('2026-04-01T11:00:00Z'),
     courseName: 'Math 101',
     uid: 'uid-1',
-    eventType: 'assignment',
+    eventType: 'Assignments',
     ...overrides,
   });
 
@@ -98,6 +109,12 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
     mockGetFreshAccessToken.mockResolvedValue(FAKE_TOKEN);
     // Default: no existing type sub-calendar in DB
     mockDb.query.courseTypeCalendars.findFirst.mockResolvedValue(null);
+    // Default: no per-type settings (all types enabled by default)
+    mockDb.query.courseTypeSettings.findMany.mockResolvedValue([]);
+    // Restore insert chain after clearAllMocks
+    mockDb.insert.mockReturnValue({ values: mockValues });
+    mockValues.mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
+    mockOnConflictDoNothing.mockResolvedValue(undefined);
     // Default: calendars.insert returns a new calendar
     mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id-123' } });
     // Default: calendarList.patch succeeds (sets sub-calendar color)
@@ -166,9 +183,9 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
     it('uses a single events.list call per type bucket per course (bulk fetch)', async () => {
       // 3 events of same type in same course → 1 events.list call
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-3', courseName: 'Math 101', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-3', courseName: 'Math 101', eventType: 'Assignments' }),
       ];
       mockEventsList.mockResolvedValue({ data: { items: [] } });
 
@@ -274,8 +291,8 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
 
     it('creates separate sub-calendars for different event types in same course', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'quiz' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', courseName: 'Math 101', eventType: 'Quizzes' }),
       ];
       mockCalendarsInsert
         .mockResolvedValueOnce({ data: { id: 'assignment-cal-id' } })
@@ -290,8 +307,8 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
 
     it('creates separate sub-calendars for different courses', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', courseName: 'CS 201', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-1', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', courseName: 'CS 201', eventType: 'Assignments' }),
       ];
       mockCalendarsInsert
         .mockResolvedValueOnce({ data: { id: 'math-assignment-cal-id' } })
@@ -307,21 +324,22 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
 
   describe('per-type filtering', () => {
     it('skips events whose type is disabled', async () => {
+      // Pre-load settings: Assignments enabled, Quizzes disabled for Math 101
+      mockDb.query.courseTypeSettings.findMany.mockResolvedValue([
+        { courseName: 'Math 101', eventType: 'Assignments', enabled: true, colorId: '9' },
+        { courseName: 'Math 101', eventType: 'Quizzes', enabled: false, colorId: '11' },
+      ]);
+
       const events = [
-        makeEvent({ uid: 'uid-assign', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-quiz', eventType: 'quiz' }),
+        makeEvent({ uid: 'uid-assign', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-quiz', eventType: 'Quizzes' }),
       ];
 
-      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
-        syncAssignments: true,
-        syncQuizzes: false,
-        syncDiscussions: true,
-        syncEvents: true,
-      });
+      const summary = await syncCanvasEvents(USER_ID, events, {});
 
-      // Only assignment should be synced
+      // Only Assignments should be synced
       expect(summary.inserted).toBe(1);
-      // Quiz type sub-calendar should NOT be created
+      // Quizzes sub-calendar should NOT be created
       expect(mockCalendarsInsert).toHaveBeenCalledTimes(1);
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -331,43 +349,42 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
     });
 
     it('skips all events when all types disabled', async () => {
+      mockDb.query.courseTypeSettings.findMany.mockResolvedValue([
+        { courseName: 'Math 101', eventType: 'Assignments', enabled: false, colorId: '9' },
+        { courseName: 'Math 101', eventType: 'Quizzes', enabled: false, colorId: '11' },
+      ]);
+
       const events = [
-        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', eventType: 'quiz' }),
+        makeEvent({ uid: 'uid-1', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', eventType: 'Quizzes' }),
       ];
 
-      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
-        syncAssignments: false,
-        syncQuizzes: false,
-        syncDiscussions: false,
-        syncEvents: false,
-      });
+      const summary = await syncCanvasEvents(USER_ID, events, {});
 
       expect(summary.inserted).toBe(0);
       expect(mockCalendarsInsert).not.toHaveBeenCalled();
     });
 
-    it('groups announcements under syncEvents toggle', async () => {
+    it('skips disabled event types (Announcements)', async () => {
+      mockDb.query.courseTypeSettings.findMany.mockResolvedValue([
+        { courseName: 'Math 101', eventType: 'Announcements', enabled: false, colorId: '8' },
+      ]);
+
       const events = [
-        makeEvent({ uid: 'uid-ann', eventType: 'announcement' }),
+        makeEvent({ uid: 'uid-ann', eventType: 'Announcements' }),
       ];
 
-      // syncEvents = false → announcements skipped
-      const summary = await syncCanvasEvents(USER_ID, events, {}, undefined, {
-        syncAssignments: true,
-        syncQuizzes: true,
-        syncDiscussions: true,
-        syncEvents: false,
-      });
+      const summary = await syncCanvasEvents(USER_ID, events, {});
 
       expect(summary.inserted).toBe(0);
       expect(mockCalendarsInsert).not.toHaveBeenCalled();
     });
 
-    it('syncs all types when enabledEventTypes is omitted (default all enabled)', async () => {
+    it('syncs all types when no settings exist (default all enabled)', async () => {
+      // Default mock: findMany returns [] — all types enabled by default
       const events = [
-        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', eventType: 'quiz' }),
+        makeEvent({ uid: 'uid-1', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', eventType: 'Quizzes' }),
       ];
       mockCalendarsInsert
         .mockResolvedValueOnce({ data: { id: 'cal-1' } })
@@ -413,14 +430,14 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
 
   describe('SyncSummary counts', () => {
     it('returns accurate counts across multiple types and courses', async () => {
-      // Math 101 assignments: 1 new, 1 existing (skip), 1 changed (update)
-      // CS 201 assignments: 2 new
+      // Math 101 Assignments: 1 new, 1 existing (skip), 1 changed (update)
+      // CS 201 Assignments: 2 new
       const events = [
-        makeEvent({ uid: 'math-new', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'math-existing', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'math-changed', summary: 'Submit Assignment: New Title', courseName: 'Math 101', eventType: 'assignment' }),
-        makeEvent({ uid: 'cs-new-1', courseName: 'CS 201', eventType: 'assignment' }),
-        makeEvent({ uid: 'cs-new-2', courseName: 'CS 201', eventType: 'assignment' }),
+        makeEvent({ uid: 'math-new', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'math-existing', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'math-changed', summary: 'Submit Assignment: New Title', courseName: 'Math 101', eventType: 'Assignments' }),
+        makeEvent({ uid: 'cs-new-1', courseName: 'CS 201', eventType: 'Assignments' }),
+        makeEvent({ uid: 'cs-new-2', courseName: 'CS 201', eventType: 'Assignments' }),
       ];
 
       mockCalendarsInsert
@@ -479,9 +496,9 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
   describe('onProgress callback', () => {
     it('calls onProgress for each event processed', async () => {
       const events = [
-        makeEvent({ uid: 'uid-1', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-2', eventType: 'assignment' }),
-        makeEvent({ uid: 'uid-3', eventType: 'assignment' }),
+        makeEvent({ uid: 'uid-1', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-2', eventType: 'Assignments' }),
+        makeEvent({ uid: 'uid-3', eventType: 'Assignments' }),
       ];
       mockCalendarsInsert.mockResolvedValue({ data: { id: 'cal-id' } });
 

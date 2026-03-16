@@ -1,67 +1,87 @@
-import { classifyEventType, CanvasEventType } from './eventTypeClassifier';
+// Mock DB modules before importing the classifier (which imports db at module level)
+jest.mock('@/lib/db', () => ({
+  db: {
+    query: { classifierCache: { findFirst: jest.fn() } },
+    insert: jest.fn().mockReturnValue({
+      values: jest.fn().mockReturnValue({
+        onConflictDoNothing: jest.fn().mockResolvedValue(undefined),
+      }),
+    }),
+  },
+}));
+jest.mock('@/lib/db/schema', () => ({
+  classifierCache: { eventNamePattern: 'eventNamePattern', category: 'category' },
+}));
+jest.mock('@anthropic-ai/sdk', () => {
+  const MockAnthropic = jest.fn().mockImplementation(() => ({
+    messages: { create: jest.fn() },
+  }));
+  return { __esModule: true, default: MockAnthropic };
+});
 
-describe('classifyEventType', () => {
-  // --- assignment ---
-  it("returns 'assignment' for 'Submit Assignment: Homework 1 [CS 201]'", () => {
-    expect(classifyEventType('Submit Assignment: Homework 1 [CS 201]')).toBe('assignment');
+import { classifyByRegex } from './eventTypeClassifier';
+
+describe('classifyByRegex', () => {
+  // --- Assignments ---
+  it("returns 'Assignments' for 'Submit Assignment: Homework 1 [CS 201]'", () => {
+    expect(classifyByRegex('Submit Assignment: Homework 1 [CS 201]')).toBe('Assignments');
   });
 
-  it("returns 'assignment' for 'Submit Assignment Homework 1 [CS 201]' (no colon variant)", () => {
-    expect(classifyEventType('Submit Assignment Homework 1 [CS 201]')).toBe('assignment');
+  it("returns 'Assignments' for 'Submit Assignment Homework 1 [CS 201]' (no colon variant)", () => {
+    expect(classifyByRegex('Submit Assignment Homework 1 [CS 201]')).toBe('Assignments');
   });
 
-  // --- quiz ---
-  it("returns 'quiz' for 'Quiz 1 [Math 101]'", () => {
-    expect(classifyEventType('Quiz 1 [Math 101]')).toBe('quiz');
+  // --- Quizzes ---
+  it("returns 'Quizzes' for 'Quiz 1 [Math 101]'", () => {
+    expect(classifyByRegex('Quiz 1 [Math 101]')).toBe('Quizzes');
   });
 
-  it("returns 'quiz' for 'Quiz: Chapter 3 [Math 101]'", () => {
-    expect(classifyEventType('Quiz: Chapter 3 [Math 101]')).toBe('quiz');
+  it("returns 'Quizzes' for 'Quiz: Chapter 3 [Math 101]'", () => {
+    expect(classifyByRegex('Quiz: Chapter 3 [Math 101]')).toBe('Quizzes');
   });
 
-  // --- discussion ---
-  it("returns 'discussion' for 'Discussion: Week 2 [ENG 100]'", () => {
-    expect(classifyEventType('Discussion: Week 2 [ENG 100]')).toBe('discussion');
+  // --- Discussions ---
+  it("returns 'Discussions' for 'Discussion: Week 2 [ENG 100]'", () => {
+    expect(classifyByRegex('Discussion: Week 2 [ENG 100]')).toBe('Discussions');
   });
 
-  it("returns 'discussion' for 'Discussion Week 2 [ENG 100]'", () => {
-    expect(classifyEventType('Discussion Week 2 [ENG 100]')).toBe('discussion');
+  it("returns 'Discussions' for 'Discussion Week 2 [ENG 100]'", () => {
+    expect(classifyByRegex('Discussion Week 2 [ENG 100]')).toBe('Discussions');
   });
 
-  // --- announcement ---
-  it("returns 'announcement' for 'Announcement: Midterm Reminder [CS 201]'", () => {
-    expect(classifyEventType('Announcement: Midterm Reminder [CS 201]')).toBe('announcement');
+  // --- Announcements ---
+  it("returns 'Announcements' for 'Announcement: Midterm Reminder [CS 201]'", () => {
+    expect(classifyByRegex('Announcement: Midterm Reminder [CS 201]')).toBe('Announcements');
   });
 
-  // --- event (catch-all) ---
-  it("returns 'event' for 'Midterm Exam [CS 201]' (catch-all)", () => {
-    expect(classifyEventType('Midterm Exam [CS 201]')).toBe('event');
+  // --- Exams ---
+  it("returns 'Exams' for 'Midterm Exam [CS 201]'", () => {
+    expect(classifyByRegex('Midterm Exam [CS 201]')).toBe('Exams');
   });
 
-  it("returns 'event' for 'CS 201 Office Hours' (no bracket prefix)", () => {
-    expect(classifyEventType('CS 201 Office Hours')).toBe('event');
+  it("returns null for 'CS 201 Office Hours' (no known prefix)", () => {
+    expect(classifyByRegex('CS 201 Office Hours')).toBeNull();
   });
 
   // --- safety ---
-  it("returns 'event' for empty string — never throws", () => {
-    expect(classifyEventType('')).toBe('event');
+  it("returns null for empty string — never throws", () => {
+    expect(classifyByRegex('')).toBeNull();
   });
 
-  // --- exhaustiveness / type contract ---
-  it('always returns one of the 5 CanvasEventType literal values', () => {
-    const validTypes: CanvasEventType[] = ['assignment', 'quiz', 'discussion', 'announcement', 'event'];
-    const inputs = [
-      'Submit Assignment: HW1 [CS 201]',
-      'Quiz 1 [Math 101]',
-      'Discussion: Week 2 [ENG 100]',
-      'Announcement: Midterm [CS 201]',
-      'Random Event [HIST 300]',
-      '',
-      'anything goes here',
-    ];
-    for (const input of inputs) {
-      const result = classifyEventType(input);
-      expect(validTypes).toContain(result);
-    }
+  // --- other matched categories ---
+  it("returns 'Exams' for 'Exam: Final [CS 201]'", () => {
+    expect(classifyByRegex('Exam: Final [CS 201]')).toBe('Exams');
+  });
+
+  it("returns 'Labs' for 'Lab Report 2 [CHEM 101]'", () => {
+    expect(classifyByRegex('Lab Report 2 [CHEM 101]')).toBe('Labs');
+  });
+
+  it("returns 'Lectures' for 'Lecture: Intro to Sorting [CS 201]'", () => {
+    expect(classifyByRegex('Lecture: Intro to Sorting [CS 201]')).toBe('Lectures');
+  });
+
+  it("returns 'Projects' for 'Project: Final Capstone [CS 201]'", () => {
+    expect(classifyByRegex('Project: Final Capstone [CS 201]')).toBe('Projects');
   });
 });

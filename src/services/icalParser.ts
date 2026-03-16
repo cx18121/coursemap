@@ -1,5 +1,5 @@
-import ical, { CalendarComponent, VEvent } from 'node-ical';
-import { classifyEventType, CanvasEventType } from './eventTypeClassifier';
+import ical, { VEvent } from 'node-ical';
+import { classifyEventsWithCache } from './eventTypeClassifier';
 
 export interface CanvasEvent {
   summary: string;
@@ -8,7 +8,7 @@ export interface CanvasEvent {
   end: Date;
   courseName: string;
   uid: string;
-  eventType: CanvasEventType;
+  eventType: string; // human-readable category label e.g. 'Assignments', 'Lab Reports'
 }
 
 export type GroupedEvents = Record<string, CanvasEvent[]>;
@@ -36,6 +36,8 @@ function extractCourseName(summary: string): string {
 
 /**
  * Fetches and parses a Canvas ICS feed and groups events by course name.
+ * After parsing, classifies all event summaries using the two-tier classifier
+ * (regex fast-path + AI fallback with DB caching).
  *
  * @param feedUrl The provided Canvas .ics URL.
  * @returns An object with course names as keys and arrays of CanvasEvents as values.
@@ -48,40 +50,59 @@ export async function parseCanvasFeed(feedUrl: string): Promise<GroupedEvents> {
   // Fetch and parse the ICS feed
   const eventsData = await ical.async.fromURL(feedUrl);
 
-  const groupedEvents: GroupedEvents = {};
+  // Collect raw events before classification
+  const rawEvents: Array<{
+    summary: string;
+    description: string;
+    start: Date;
+    end: Date;
+    courseName: string;
+    uid: string;
+  }> = [];
 
-  // Iterate over parsed values
   for (const k in eventsData) {
     if (Object.prototype.hasOwnProperty.call(eventsData, k)) {
       const component = eventsData[k];
 
-      // Guard against undefined (TypeScript index signature)
       if (!component) continue;
 
-      // We only care about VEVENTs (actual events and assignments)
       if (component.type === 'VEVENT') {
         const ev = component as VEvent;
-        // node-ical fields are ParameterValue objects, coerce to string
         const summary = ev.summary ? String(ev.summary) : 'Untitled Event';
         const courseName = extractCourseName(summary);
 
-        const canvasEvent: CanvasEvent = {
+        rawEvents.push({
           summary,
           description: ev.description ? String(ev.description) : '',
           start: ev.start as Date,
           end: ev.end as Date,
           courseName,
           uid: ev.uid ? String(ev.uid) : k,
-          eventType: classifyEventType(summary),
-        };
-
-        if (!groupedEvents[courseName]) {
-          groupedEvents[courseName] = [];
-        }
-
-        groupedEvents[courseName].push(canvasEvent);
+        });
       }
     }
+  }
+
+  // Classify all summaries in one batch (cache-first, regex fast-path, AI fallback)
+  const allSummaries = rawEvents.map((e) => e.summary);
+  const classificationMap = await classifyEventsWithCache(allSummaries);
+
+  // Build grouped events with classifications
+  const groupedEvents: GroupedEvents = {};
+
+  for (const raw of rawEvents) {
+    const eventType = classificationMap.get(raw.summary) ?? 'Events';
+
+    const canvasEvent: CanvasEvent = {
+      ...raw,
+      eventType,
+    };
+
+    if (!groupedEvents[raw.courseName]) {
+      groupedEvents[raw.courseName] = [];
+    }
+
+    groupedEvents[raw.courseName].push(canvasEvent);
   }
 
   return groupedEvents;

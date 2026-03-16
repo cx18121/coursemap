@@ -1,11 +1,26 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
 import SyncSummary from './SyncSummary';
-import TypeGroupingToggle, { EventTypeSettings } from './TypeGroupingToggle';
+import TypeGroupingToggle, { CourseTypeSetting } from './TypeGroupingToggle';
+
+// ---- Constants -----------------------------------------------------------
+
+/** Default Google Calendar colorIds per event type (mirrors gcalSubcalendars.ts). */
+const DEFAULT_TYPE_COLORS: Record<string, string> = {
+  Assignments:   '9',
+  Quizzes:       '11',
+  Discussions:   '2',
+  Events:        '6',
+  Announcements: '8',
+  Exams:         '3',
+  Labs:          '7',
+  Lectures:      '5',
+  Projects:      '4',
+};
 
 // ---- Types ---------------------------------------------------------------
 
@@ -17,6 +32,7 @@ interface CourseEvent {
   start: string;
   end: string;
   excluded: boolean;
+  eventType: string;
 }
 
 interface Course {
@@ -54,12 +70,12 @@ interface SyncDashboardProps {
   userName: string;
   hasCanvasUrl: boolean;
   hasSchoolAccount: boolean;
-  initialEventTypeSettings: EventTypeSettings;
+  initialCourseTypeSettings: CourseTypeSetting[];
 }
 
 // ---- Component -----------------------------------------------------------
 
-export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount, initialEventTypeSettings }: SyncDashboardProps) {
+export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount, initialCourseTypeSettings }: SyncDashboardProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [schoolCalendars, setSchoolCalendars] = useState<SchoolCalendar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +88,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
-  const [eventTypeSettings, setEventTypeSettings] = useState<EventTypeSettings>(initialEventTypeSettings);
+  const [courseTypeSettings, setCourseTypeSettings] = useState<CourseTypeSetting[]>(initialCourseTypeSettings);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -104,6 +120,15 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
               })
           );
         }
+
+        // Fetch latest courseTypeSettings from API (may have been updated by last sync)
+        promises.push(
+          fetch('/api/user-settings')
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.courseTypeSettings) setCourseTypeSettings(data.courseTypeSettings);
+            })
+        );
 
         await Promise.all(promises);
       } catch (err) {
@@ -192,19 +217,55 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     }).catch(console.error);
   }, []);
 
-  const handleToggleEventType = useCallback(async (key: keyof EventTypeSettings, enabled: boolean) => {
-    const previousSettings = eventTypeSettings;
-    setEventTypeSettings((prev) => ({ ...prev, [key]: enabled }));
+  const handleToggleEventType = useCallback(async (courseName: string, eventType: string, enabled: boolean) => {
+    // Optimistic update — add row if it doesn't exist in DB state yet
+    const previousSettings = courseTypeSettings;
+    setCourseTypeSettings((prev) => {
+      const exists = prev.some((s) => s.courseName === courseName && s.eventType === eventType);
+      if (exists) {
+        return prev.map((s) =>
+          s.courseName === courseName && s.eventType === eventType ? { ...s, enabled } : s
+        );
+      }
+      // New row: use type-specific default color for the optimistic entry
+      const defaultColorId = DEFAULT_TYPE_COLORS[eventType] ?? '1';
+      return [...prev, { courseName, eventType, enabled, colorId: defaultColorId }];
+    });
     clearSummary();
+
     await fetch('/api/user-settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [key]: enabled }),
+      body: JSON.stringify({ courseName, eventType, enabled }),
     }).catch(() => {
-      // Silent revert on failure — matches existing course toggle pattern
-      setEventTypeSettings(previousSettings);
+      // Silent revert on failure
+      setCourseTypeSettings(previousSettings);
     });
-  }, [eventTypeSettings]);
+  }, [courseTypeSettings]);
+
+  const handleChangeEventTypeColor = useCallback(async (courseName: string, eventType: string, colorId: string) => {
+    // Optimistic update
+    const previousSettings = courseTypeSettings;
+    setCourseTypeSettings((prev) => {
+      const exists = prev.some((s) => s.courseName === courseName && s.eventType === eventType);
+      if (exists) {
+        return prev.map((s) =>
+          s.courseName === courseName && s.eventType === eventType ? { ...s, colorId } : s
+        );
+      }
+      return [...prev, { courseName, eventType, enabled: true, colorId }];
+    });
+    clearSummary();
+
+    await fetch('/api/user-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseName, eventType, colorId }),
+    }).catch(() => {
+      // Silent revert on failure
+      setCourseTypeSettings(previousSettings);
+    });
+  }, [courseTypeSettings]);
 
   const handleToggleSchoolCalendar = useCallback(
     async (calendarId: string, calendarName: string, enabled: boolean) => {
@@ -259,6 +320,16 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           const now = Date.now();
           localStorage.setItem('lastSyncedAt', String(now));
           setLastSyncedAt(now);
+
+          // Refresh courseTypeSettings after sync — new types may have been discovered
+          fetch('/api/user-settings')
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.courseTypeSettings) setCourseTypeSettings(data.courseTypeSettings);
+            })
+            .catch(() => {
+              // Non-fatal: settings will refresh on next page load
+            });
         } else if (statusData.status === 'error') {
           clearInterval(pollIntervalRef.current!);
           pollIntervalRef.current = null;
@@ -276,6 +347,38 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   // ---- Derived state -----------------------------------------------------
 
   const hasAnyCourseEnabled = courses.some((c) => c.enabled);
+
+  // Derive per-course type settings from the actual events in each course,
+  // merged with any saved DB preferences (courseTypeSettings).
+  // This means checkboxes appear immediately after courses load, with categories
+  // specific to each course based on its actual event titles.
+  const derivedCourseTypeSettings = useMemo<CourseTypeSetting[]>(() => {
+    const savedMap = new Map(
+      courseTypeSettings.map((s) => [
+        `${s.courseName}:${s.eventType}`,
+        { enabled: s.enabled, colorId: s.colorId },
+      ])
+    );
+
+    const result: CourseTypeSetting[] = [];
+    for (const course of courses) {
+      const seenTypes = new Set<string>();
+      for (const event of course.events) {
+        if (!seenTypes.has(event.eventType)) {
+          seenTypes.add(event.eventType);
+          const key = `${course.courseName}:${event.eventType}`;
+          const saved = savedMap.get(key);
+          result.push({
+            courseName: course.courseName,
+            eventType: event.eventType,
+            enabled: saved?.enabled ?? true,
+            colorId: saved?.colorId ?? DEFAULT_TYPE_COLORS[event.eventType] ?? '1',
+          });
+        }
+      }
+    }
+    return result;
+  }, [courses, courseTypeSettings]);
 
   // ---- Render ------------------------------------------------------------
 
@@ -328,11 +431,12 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           </div>
         )}
 
-        {/* Event type filter — only when courses are loaded */}
+        {/* Event type filter — per-course, shown when courses are loaded */}
         {!isLoading && hasCanvasUrl && courses.length > 0 && (
           <TypeGroupingToggle
-            settings={eventTypeSettings}
+            courseTypeSettings={derivedCourseTypeSettings}
             onToggle={handleToggleEventType}
+            onColorChange={handleChangeEventTypeColor}
           />
         )}
 

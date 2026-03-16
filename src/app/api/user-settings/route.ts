@@ -1,39 +1,42 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { courseTypeSettings } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 // GET /api/user-settings
-// Returns current user settings relevant to the dashboard
+// Returns per-course type settings for the current user
 export async function GET() {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, session.userId),
+
+  const rows = await db.query.courseTypeSettings.findMany({
+    where: eq(courseTypeSettings.userId, session.userId),
+    columns: {
+      courseName: true,
+      eventType: true,
+      enabled: true,
+      colorId: true,
+    },
   });
-  if (!user) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  }
-  return NextResponse.json({
-    syncAssignments: user.syncAssignments ?? true,
-    syncQuizzes: user.syncQuizzes ?? true,
-    syncDiscussions: user.syncDiscussions ?? true,
-    syncEvents: user.syncEvents ?? true,
-  });
+
+  return NextResponse.json({ courseTypeSettings: rows });
 }
 
 interface UserSettingsBody {
-  syncAssignments?: boolean;
-  syncQuizzes?: boolean;
-  syncDiscussions?: boolean;
-  syncEvents?: boolean;
+  courseName?: string;
+  eventType?: string;
+  enabled?: boolean;
+  colorId?: string;
 }
 
+const VALID_COLOR_IDS = new Set(['1','2','3','4','5','6','7','8','9','10','11']);
+
 // PATCH /api/user-settings
-// Accepts per-type sync toggles and persists to users table
+// Updates enabled and/or colorId for a specific (courseName, eventType) pair.
+// At least one of enabled or colorId must be provided.
 export async function PATCH(req: Request) {
   const session = await getSession();
   if (!session) {
@@ -47,41 +50,43 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const updates: Partial<typeof users.$inferInsert> = {};
+  const { courseName, eventType, enabled, colorId } = body;
 
-  if (body.syncAssignments !== undefined) {
-    if (typeof body.syncAssignments !== 'boolean') {
-      return NextResponse.json({ error: 'syncAssignments must be a boolean' }, { status: 400 });
-    }
-    updates.syncAssignments = body.syncAssignments;
+  if (typeof courseName !== 'string' || courseName.trim() === '') {
+    return NextResponse.json({ error: 'courseName must be a non-empty string' }, { status: 400 });
   }
-  if (body.syncQuizzes !== undefined) {
-    if (typeof body.syncQuizzes !== 'boolean') {
-      return NextResponse.json({ error: 'syncQuizzes must be a boolean' }, { status: 400 });
-    }
-    updates.syncQuizzes = body.syncQuizzes;
+  if (typeof eventType !== 'string' || eventType.trim() === '') {
+    return NextResponse.json({ error: 'eventType must be a non-empty string' }, { status: 400 });
   }
-  if (body.syncDiscussions !== undefined) {
-    if (typeof body.syncDiscussions !== 'boolean') {
-      return NextResponse.json({ error: 'syncDiscussions must be a boolean' }, { status: 400 });
-    }
-    updates.syncDiscussions = body.syncDiscussions;
+  if (enabled === undefined && colorId === undefined) {
+    return NextResponse.json({ error: 'At least one of enabled or colorId must be provided' }, { status: 400 });
   }
-  if (body.syncEvents !== undefined) {
-    if (typeof body.syncEvents !== 'boolean') {
-      return NextResponse.json({ error: 'syncEvents must be a boolean' }, { status: 400 });
-    }
-    updates.syncEvents = body.syncEvents;
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 });
+  }
+  if (colorId !== undefined && !VALID_COLOR_IDS.has(colorId)) {
+    return NextResponse.json({ error: 'colorId must be one of 1-11' }, { status: 400 });
   }
 
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
-  }
+  // Build the set of columns to update
+  const setClause: Partial<{ enabled: boolean; colorId: string }> = {};
+  if (enabled !== undefined) setClause.enabled = enabled;
+  if (colorId !== undefined) setClause.colorId = colorId;
 
+  // Upsert: update if row exists, insert with defaults if not
   await db
-    .update(users)
-    .set(updates)
-    .where(eq(users.id, session.userId));
+    .insert(courseTypeSettings)
+    .values({
+      userId: session.userId,
+      courseName,
+      eventType,
+      enabled: enabled ?? true,
+      colorId: colorId ?? '1',
+    })
+    .onConflictDoUpdate({
+      target: [courseTypeSettings.userId, courseTypeSettings.courseName, courseTypeSettings.eventType],
+      set: setClause,
+    });
 
   return NextResponse.json({ success: true });
 }

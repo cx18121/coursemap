@@ -154,6 +154,7 @@ export const courseTypeSettings = pgTable(
     courseName: text('course_name').notNull(),
     eventType: text('event_type').notNull(), // human-readable label e.g. 'Assignments', 'Quizzes'
     enabled: boolean('enabled').notNull().default(true),
+    colorId: text('color_id').notNull().default('1'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .notNull()
       .defaultNow(),

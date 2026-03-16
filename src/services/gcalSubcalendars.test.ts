@@ -98,7 +98,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
         FAKE_CALENDAR,
         USER_ID,
         'Math 101',
-        'assignment',
+        'Assignments',
         '5'
       );
 
@@ -111,7 +111,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
         gcalCalendarId: 'existing-id',
       });
 
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'CS 201', 'quiz', '3');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'CS 201', 'Quizzes', '3');
 
       expect(mockCalendarsInsert).not.toHaveBeenCalled();
       expect(mockCalendarListPatch).not.toHaveBeenCalled();
@@ -125,7 +125,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
         FAKE_CALENDAR,
         USER_ID,
         'Math 101',
-        'assignment',
+        'Assignments',
         '5'
       );
 
@@ -135,14 +135,14 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     it('inserts row into courseTypeCalendars after calendar creation', async () => {
       mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-id' } });
 
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'quiz', '7');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'Quizzes', '7');
 
       expect(mockDb.insert).toHaveBeenCalledTimes(1);
       expect(mockDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: USER_ID,
           courseName: 'Math 101',
-          eventType: 'quiz',
+          eventType: 'Quizzes',
           gcalCalendarId: 'new-id',
         })
       );
@@ -151,7 +151,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
 
   describe('calendar naming convention', () => {
     it('creates calendar named "Canvas - Math 101 — Assignments" for (Math 101, assignment)', async () => {
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'assignment', '5');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'Assignments', '5');
 
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -163,7 +163,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     });
 
     it('creates calendar named "Canvas - CS 201 — Quizzes" for (CS 201, quiz)', async () => {
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'CS 201', 'quiz', '3');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'CS 201', 'Quizzes', '3');
 
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -175,7 +175,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     });
 
     it('creates calendar named "Canvas - ENG 100 — Events" for (ENG 100, event)', async () => {
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'ENG 100', 'event', '2');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'ENG 100', 'Events', '2');
 
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -187,7 +187,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     });
 
     it('creates calendar named "Canvas - HIST 200 — Discussions" for (HIST 200, discussion)', async () => {
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'HIST 200', 'discussion', '1');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'HIST 200', 'Discussions', '1');
 
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -199,7 +199,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     });
 
     it('creates calendar named "Canvas - BIO 301 — Announcements" for (BIO 301, announcement)', async () => {
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'BIO 301', 'announcement', '9');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'BIO 301', 'Announcements', '9');
 
       expect(mockCalendarsInsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -215,7 +215,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
     it('calls calendarList.patch with the provided colorId', async () => {
       mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id' } });
 
-      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'assignment', '11');
+      await ensureTypeSubCalendar(FAKE_CALENDAR, USER_ID, 'Math 101', 'Assignments', '11');
 
       expect(mockCalendarListPatch).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -236,7 +236,7 @@ describe('gcalSubcalendars - ensureTypeSubCalendar', () => {
         FAKE_CALENDAR,
         USER_ID,
         'Math 101',
-        'assignment',
+        'Assignments',
         '5'
       );
 

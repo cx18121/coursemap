@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { parseCanvasFeed } from '@/services/icalParser';
 import { filterEventsForSync } from '@/services/syncFilter';
 import { assignCourseColors } from '@/services/colorAssignment';
-import { syncCanvasEvents, type SyncProgress, type SyncSummary, type EnabledEventTypes } from '@/services/gcalSync';
+import { syncCanvasEvents, type SyncProgress, type SyncSummary } from '@/services/gcalSync';
 import { mirrorSchoolCalendars, type MirrorSummary } from '@/services/schoolMirror';
 
 export interface SyncJobState {
@@ -56,12 +56,12 @@ function pruneOldJobs() {
   }
 }
 
-async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, enabledEventTypes: EnabledEventTypes) {
+async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string) {
   const job = syncJobs.get(jobId);
   if (!job) return;
 
   try {
-    // Step 1: Parse Canvas feed
+    // Step 1: Parse Canvas feed (includes AI classification of event types)
     const groupedEvents = await parseCanvasFeed(canvasIcsUrl);
     const courseNames = Object.keys(groupedEvents);
 
@@ -72,6 +72,8 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, e
     const colorMap = await assignCourseColors(userId, courseNames);
 
     // Step 4: Sync Canvas events to Google Calendar
+    // Per-course type settings are loaded from DB inside syncCanvasEvents
+    // New (course, type) pairs are auto-discovered and persisted during sync
     const canvasSummary = await syncCanvasEvents(
       userId,
       filteredEvents,
@@ -86,8 +88,7 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string, e
         } else {
           job.progress.push(progress);
         }
-      },
-      enabledEventTypes  // ← pass per-type sync filters
+      }
     );
 
     // Step 5: Mirror school calendars
@@ -156,14 +157,7 @@ export async function POST() {
   // Use after() to run sync after response is sent — ensures background sync
   // completes on Vercel (void promise would be killed when response closes).
   // Errors are caught inside runSyncJob and recorded in job state.
-  const enabledEventTypes: EnabledEventTypes = {
-    syncAssignments: user.syncAssignments ?? true,
-    syncQuizzes: user.syncQuizzes ?? true,
-    syncDiscussions: user.syncDiscussions ?? true,
-    syncEvents: user.syncEvents ?? true,
-  };
-
-  after(runSyncJob(jobId, userId, user.canvasIcsUrl, enabledEventTypes));
+  after(runSyncJob(jobId, userId, user.canvasIcsUrl));
 
   return NextResponse.json({ jobId }, { status: 202 });
 }

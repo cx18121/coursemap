@@ -81,6 +81,7 @@ export async function GET() {
           start: event.start,
           end: event.end,
           excluded,
+          eventType: event.eventType,
         };
       });
 

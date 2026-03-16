@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { db } from "@/lib/db";
-import { users, oauthTokens } from "@/lib/db/schema";
+import { users, oauthTokens, courseTypeSettings } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import SyncDashboard from "@/components/SyncDashboard";
 
@@ -11,7 +11,7 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const [user, schoolToken] = await Promise.all([
+  const [user, schoolToken, typeSettings] = await Promise.all([
     db.query.users.findFirst({
       where: eq(users.id, session.userId),
     }),
@@ -20,6 +20,15 @@ export default async function DashboardPage() {
         eq(oauthTokens.userId, session.userId),
         eq(oauthTokens.role, "school")
       ),
+    }),
+    db.query.courseTypeSettings.findMany({
+      where: eq(courseTypeSettings.userId, session.userId),
+      columns: {
+        courseName: true,
+        eventType: true,
+        enabled: true,
+        colorId: true,
+      },
     }),
   ]);
 
@@ -30,19 +39,13 @@ export default async function DashboardPage() {
   const userName = user.name;
   const hasCanvasUrl = !!user.canvasIcsUrl;
   const hasSchoolAccount = !!schoolToken;
-  const initialEventTypeSettings = {
-    syncAssignments: user.syncAssignments ?? true,
-    syncQuizzes: user.syncQuizzes ?? true,
-    syncDiscussions: user.syncDiscussions ?? true,
-    syncEvents: user.syncEvents ?? true,
-  };
 
   return (
     <SyncDashboard
       userName={userName}
       hasCanvasUrl={hasCanvasUrl}
       hasSchoolAccount={hasSchoolAccount}
-      initialEventTypeSettings={initialEventTypeSettings}
+      initialCourseTypeSettings={typeSettings}
     />
   );
 }

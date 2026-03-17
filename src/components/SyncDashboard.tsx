@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import CountdownPanel from './CountdownPanel';
+import ConflictPanel from './ConflictPanel';
 import DedupePanel from './DedupePanel';
 import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
@@ -90,6 +91,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | null>(null);
+  const [syncVersion, setSyncVersion] = useState(0);
 
   const [courseTypeSettings, setCourseTypeSettings] = useState<CourseTypeSetting[]>(initialCourseTypeSettings);
 
@@ -346,6 +348,9 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
             .catch(() => {
               // Non-fatal: settings will refresh on next page load
             });
+
+          // Bump syncVersion to force ConflictPanel remount — clears cached conflict data
+          setSyncVersion((v) => v + 1);
         } else if (statusData.status === 'error') {
           clearInterval(pollIntervalRef.current!);
           pollIntervalRef.current = null;
@@ -443,6 +448,11 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         {/* Dedup preview panel — Canvas sync preview */}
         {!isLoading && hasCanvasUrl && courses.length > 0 && (
           <DedupePanel />
+        )}
+
+        {/* Conflict detection panel — GCal edits since last sync */}
+        {!isLoading && hasCanvasUrl && courses.length > 0 && (
+          <ConflictPanel key={syncVersion} />
         )}
 
         {/* No Canvas URL message */}

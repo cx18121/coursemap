@@ -58,7 +58,7 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 ### Deduplication
 
 - [x] **DEDUP-01**: User can see a pre-sync summary (N would be created / N updated / N unchanged) before committing a sync
-- [ ] **DEDUP-02**: Synced event snapshots are stored in DB so the dedup panel loads without additional Google Calendar API calls
+- [x] **DEDUP-02**: Synced event snapshots are stored in DB so the dedup panel loads without additional Google Calendar API calls
 
 ### Conflict Detection
 
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRON-03 | Phase 5 | Complete |
 | COUNTDOWN-01 | Phase 5 | Complete |
 | DEDUP-01 | Phase 6 | Complete |
-| DEDUP-02 | Phase 6 | Pending |
+| DEDUP-02 | Phase 6 | Complete |
 | CONFLICT-01 | Phase 7 | Pending |
 | CONFLICT-02 | Phase 7 | Pending |
 

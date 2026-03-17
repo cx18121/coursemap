@@ -62,8 +62,8 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 
 ### Conflict Detection
 
-- [ ] **CONFLICT-01**: Dashboard shows how many synced events have been modified in Google Calendar since the last sync
-- [ ] **CONFLICT-02**: User can view a list of those conflicted events (Canvas title, due date, when GCal was modified)
+- [x] **CONFLICT-01**: Dashboard shows how many synced events have been modified in Google Calendar since the last sync
+- [x] **CONFLICT-02**: User can view a list of those conflicted events (Canvas title, due date, when GCal was modified)
 
 ## v2 Requirements
 
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COUNTDOWN-01 | Phase 5 | Complete |
 | DEDUP-01 | Phase 6 | Complete |
 | DEDUP-02 | Phase 6 | Complete |
-| CONFLICT-01 | Phase 7 | Pending |
-| CONFLICT-02 | Phase 7 | Pending |
+| CONFLICT-01 | Phase 7 | Complete |
+| CONFLICT-02 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total — all complete ✓

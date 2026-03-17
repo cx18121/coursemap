@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Automation & Visibility
 status: planning
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-17T05:54:24.623Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-03-17T16:18:37.812Z"
 last_activity: 2026-03-16 — v1.1 roadmap created
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 19
+  completed_plans: 18
   percent: 93
 ---
 
@@ -85,6 +85,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05-auto-sync-and-countdown P02 | 4 | 2 tasks | 3 files |
 | Phase 06-deduplication-preview P02 | 14 | 2 tasks | 4 files |
 | Phase 06-deduplication-preview P01 | 14 | 2 tasks | 5 files |
+| Phase 07-conflict-detection P01 | 5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase Phase 06-deduplication-preview]: DedupePanel reads from syncedEvents DB mirror — lazy fetch on accordion expand, cached in component state, no mounted gate needed
 - [Phase 06-deduplication-preview]: syncedEvents upsert placed AFTER GCal API call success, BEFORE summary counter — failed GCal calls produce no mirror row
 - [Phase 06-deduplication-preview]: onConflictDoUpdate composite target uses [syncedEvents.userId, syncedEvents.uid] column array — matches Drizzle ORM docs and existing courseTypeCalendars pattern
+- [Phase 07-conflict-detection]: gcalEventId is nullable (no .notNull()) — existing rows will have NULL until re-synced; safe for incremental adoption
+- [Phase 07-conflict-detection]: INSERT branch captures insertResponse.data.id from calendar.events.insert return value; UPDATE branch captures existing.id from events.list response — no extra API call needed
 
 ### Roadmap Evolution
 
@@ -169,6 +172,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T05:50:52.496Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-17T16:18:37.748Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None

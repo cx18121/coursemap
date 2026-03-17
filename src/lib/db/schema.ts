@@ -204,6 +204,7 @@ export const syncedEvents = pgTable(
     startAt: timestamp('start_at', { withTimezone: true, mode: 'date' }).notNull(),
     endAt: timestamp('end_at', { withTimezone: true, mode: 'date' }).notNull(),
     gcalCalendarId: text('gcal_calendar_id').notNull(),
+    gcalEventId: text('gcal_event_id'),
     syncedAt: timestamp('synced_at', { withTimezone: true, mode: 'date' })
       .notNull()
       .defaultNow(),

@@ -14,14 +14,25 @@ interface SyncedEventSnapshot {
   endAt: Date;
 }
 
+interface IncomingEventFields {
+  summary: string;
+  description: string;
+  /** ISO 8601 string from CanvasEvent */
+  start: string;
+  /** ISO 8601 string from CanvasEvent */
+  end: string;
+}
+
 function hasChangedVsSnapshot(
-  incoming: { summary: string; description: string; start: string; end: string },
+  incoming: IncomingEventFields,
   snapshot: SyncedEventSnapshot
 ): boolean {
   if (incoming.summary !== snapshot.summary) return true;
   if ((incoming.description ?? null) !== (snapshot.description ?? null)) return true;
-  if (new Date(incoming.start).getTime() !== snapshot.startAt.getTime()) return true;
-  if (new Date(incoming.end).getTime() !== snapshot.endAt.getTime()) return true;
+  const incomingStartMs = Date.parse(incoming.start);
+  const incomingEndMs = Date.parse(incoming.end);
+  if (incomingStartMs !== snapshot.startAt.getTime()) return true;
+  if (incomingEndMs !== snapshot.endAt.getTime()) return true;
   return false;
 }
 

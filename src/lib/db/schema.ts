@@ -187,3 +187,28 @@ export const syncLog = pgTable('sync_log', {
   lastSyncStatus: text('last_sync_status', { enum: ['success', 'error'] }),
   lastSyncError: text('last_sync_error'),
 });
+
+// DB mirror of Canvas events successfully pushed to GCal — one row per (userId, uid)
+// Written by syncCanvasEvents after each successful GCal insert/update
+// Read by GET /api/sync/preview to compute pre-sync diff counts without GCal API calls (DEDUP-02)
+export const syncedEvents = pgTable(
+  'synced_events',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    uid: text('uid').notNull(),
+    summary: text('summary').notNull(),
+    description: text('description'),
+    startAt: timestamp('start_at', { withTimezone: true, mode: 'date' }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true, mode: 'date' }).notNull(),
+    gcalCalendarId: text('gcal_calendar_id').notNull(),
+    syncedAt: timestamp('synced_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userUidIdx: uniqueIndex('synced_events_user_uid_idx').on(t.userId, t.uid),
+  })
+);

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Automation & Visibility
 status: planning
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-17T16:18:37.812Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-17T16:30:52.027Z"
 last_activity: 2026-03-16 — v1.1 roadmap created
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 93
 ---
 
@@ -86,6 +86,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 06-deduplication-preview P02 | 14 | 2 tasks | 4 files |
 | Phase 06-deduplication-preview P01 | 14 | 2 tasks | 5 files |
 | Phase 07-conflict-detection P01 | 5 | 2 tasks | 4 files |
+| Phase 07-conflict-detection P02 | 25 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 06-deduplication-preview]: onConflictDoUpdate composite target uses [syncedEvents.userId, syncedEvents.uid] column array — matches Drizzle ORM docs and existing courseTypeCalendars pattern
 - [Phase 07-conflict-detection]: gcalEventId is nullable (no .notNull()) — existing rows will have NULL until re-synced; safe for incremental adoption
 - [Phase 07-conflict-detection]: INSERT branch captures insertResponse.data.id from calendar.events.insert return value; UPDATE branch captures existing.id from events.list response — no extra API call needed
+- [Phase 07-conflict-detection]: GRACE_MS = 60_000 constant in route (not env-configurable) — suppresses GCal API false positives from sync-triggered updated bumps
+- [Phase 07-conflict-detection]: key={syncVersion} on ConflictPanel forces React remount on sync complete to clear cached conflict data without prop drilling
+- [Phase 07-conflict-detection]: Defensive null guard in batch loop: skip rows with null gcalEventId before events.get call even after WHERE isNotNull filter
 
 ### Roadmap Evolution
 
@@ -172,6 +176,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:18:37.748Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-17T16:30:51.890Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None

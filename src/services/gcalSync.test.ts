@@ -96,6 +96,7 @@ jest.mock('@/lib/db/schema', () => ({
     startAt: 'startAt',
     endAt: 'endAt',
     gcalCalendarId: 'gcalCalendarId',
+    gcalEventId: 'gcalEventId',
     syncedAt: 'syncedAt',
   },
 }));
@@ -600,6 +601,60 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
         (call: unknown[]) => call[0] === mockSyncedEvents
       );
       expect(syncedEventsInsertCalls).toHaveLength(0);
+    });
+  });
+
+  describe('gcalEventId storage (CONFLICT-01/02)', () => {
+    it('stores gcalEventId from insert response in syncedEvents upsert', async () => {
+      const event = makeEvent({ uid: 'insert-uid' });
+      mockEventsList.mockResolvedValue({ data: { items: [] } });
+      mockEventsInsert.mockResolvedValue({ data: { id: 'inserted-gcal-id-123' } });
+
+      await syncCanvasEvents(USER_ID, [event], {});
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({ gcalEventId: 'inserted-gcal-id-123' })
+      );
+    });
+
+    it('stores gcalEventId from existing event on update in syncedEvents upsert', async () => {
+      const event = makeEvent({ uid: 'update-uid', summary: 'Changed Summary' });
+      mockEventsList.mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: 'existing-gcal-id-456',
+              summary: 'Old Summary',
+              start: { dateTime: event.start.toISOString() },
+              end: { dateTime: event.end.toISOString() },
+              description: event.description,
+              extendedProperties: {
+                private: { canvasCanvasUid: 'update-uid' },
+              },
+            },
+          ],
+        },
+      });
+
+      await syncCanvasEvents(USER_ID, [event], {});
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({ gcalEventId: 'existing-gcal-id-456' })
+      );
+    });
+
+    it('passes gcalEventId in onConflictDoUpdate set', async () => {
+      const event = makeEvent({ uid: 'conflict-uid' });
+      mockEventsList.mockResolvedValue({ data: { items: [] } });
+      mockEventsInsert.mockResolvedValue({ data: { id: 'gcal-id-for-conflict' } });
+
+      await syncCanvasEvents(USER_ID, [event], {});
+
+      expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          set: expect.objectContaining({ gcalEventId: 'gcal-id-for-conflict' }),
+        })
+      );
     });
   });
 });

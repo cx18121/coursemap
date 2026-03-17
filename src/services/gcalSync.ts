@@ -292,7 +292,8 @@ export async function syncCanvasEvents(
         try {
           const existing = existingByUid.get(event.uid);
           if (!existing) {
-            await calendar.events.insert({ calendarId: subCalId, requestBody: gcalEvent });
+            const insertResponse = await calendar.events.insert({ calendarId: subCalId, requestBody: gcalEvent });
+            const gcalEventId = insertResponse.data.id ?? null;
             await db.insert(syncedEvents).values({
               userId,
               uid: event.uid,
@@ -301,6 +302,7 @@ export async function syncCanvasEvents(
               startAt: new Date(event.start),
               endAt: new Date(event.end),
               gcalCalendarId: subCalId,
+              gcalEventId,
               syncedAt: new Date(),
             }).onConflictDoUpdate({
               target: [syncedEvents.userId, syncedEvents.uid],
@@ -310,11 +312,13 @@ export async function syncCanvasEvents(
                 startAt: new Date(event.start),
                 endAt: new Date(event.end),
                 gcalCalendarId: subCalId,
+                gcalEventId,
                 syncedAt: new Date(),
               },
             });
             summary.inserted++;
           } else if (hasChanged(event, existing)) {
+            const gcalEventId = existing.id ?? null;
             await calendar.events.update({ calendarId: subCalId, eventId: existing.id!, requestBody: gcalEvent });
             await db.insert(syncedEvents).values({
               userId,
@@ -324,6 +328,7 @@ export async function syncCanvasEvents(
               startAt: new Date(event.start),
               endAt: new Date(event.end),
               gcalCalendarId: subCalId,
+              gcalEventId,
               syncedAt: new Date(),
             }).onConflictDoUpdate({
               target: [syncedEvents.userId, syncedEvents.uid],
@@ -333,6 +338,7 @@ export async function syncCanvasEvents(
                 startAt: new Date(event.start),
                 endAt: new Date(event.end),
                 gcalCalendarId: subCalId,
+                gcalEventId,
                 syncedAt: new Date(),
               },
             });

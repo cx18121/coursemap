@@ -129,7 +129,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The dashboard shows a count of synced events where the Google Calendar copy has been modified since the last sync
   2. Expanding the conflict panel shows a list of those events with the Canvas title, due date, and when the Google Calendar copy was last modified
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — gcalEventId schema extension + migration, wire gcalSync.ts to store GCal event ID after insert/update
+- [ ] 07-02-PLAN.md — GET /api/sync/conflicts endpoint with grace window, ConflictPanel UI, SyncDashboard wiring
 
 ## Progress (v1.1)
 
@@ -141,4 +145,4 @@ Phases execute in numeric order: 5 → 6 → 7
 | 4. Event Type Grouping | 4/4 | Complete | 2026-03-16 |
 | 5. Auto-Sync and Countdown | 2/2 | Complete   | 2026-03-17 |
 | 6. Deduplication Preview | 2/2 | Complete   | 2026-03-17 |
-| 7. Conflict Detection | 0/TBD | Not started | - |
+| 7. Conflict Detection | 0/2 | Planning complete | - |

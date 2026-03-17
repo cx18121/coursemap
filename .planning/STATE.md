@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Automation & Visibility
 status: planning
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-17T03:02:38.312Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-17T03:09:54.022Z"
 last_activity: 2026-03-16 — v1.1 roadmap created
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
   percent: 93
 ---
 
@@ -82,6 +82,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 25 | 3 tasks | 8 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P03 | 3 | 1 tasks | 0 files |
 | Phase 05-auto-sync-and-countdown P01 | 15 | 2 tasks | 8 files |
+| Phase 05-auto-sync-and-countdown P02 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 05-auto-sync-and-countdown]: Cron route does NOT call getSession() — cron has no browser cookie; CRON_SECRET header auth only
 - [Phase 05-auto-sync-and-countdown]: runSyncForUser in syncRunner.ts is simplified (no progress callbacks) for cron; manual sync keeps its own runSyncJob with in-memory progress tracking
 - [Phase 05-auto-sync-and-countdown]: Manual sync route also writes to syncLog on completion/error via upsertSyncLog — single read path for /api/sync/last
+- [Phase Phase 05-auto-sync-and-countdown]: CountdownPanel uses 'use client' + mounted state gate to suppress server render — avoids React hydration mismatch for non-UTC users
+- [Phase Phase 05-auto-sync-and-countdown]: countdownEvents useMemo flattens courses into flat CountdownEvent array with courseEnabled prop — single prop interface to CountdownPanel
+- [Phase Phase 05-auto-sync-and-countdown]: SyncDashboard reads lastSyncedAt from /api/sync/last on mount (not localStorage) — single DB-backed read path for both manual and cron sync results
 
 ### Roadmap Evolution
 
@@ -159,6 +163,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T03:02:38.289Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-17T03:09:53.999Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

@@ -103,7 +103,7 @@ Plans:
   2. The dashboard "Last synced" timestamp reflects background cron runs, not only manual syncs — it reads from the DB, not localStorage
   3. One user's expired or broken token causes that user's sync to be recorded as failed, but all other users in the cron run complete normally
   4. The dashboard shows upcoming Canvas deadlines grouped into Overdue / Due Today / Due Tomorrow / Due This Week, calculated in the user's local timezone
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — syncLog DB table, extracted runSyncForUser, Vercel cron route with CRON_SECRET auth, /api/sync/last endpoint, vercel.json cron config
@@ -135,6 +135,6 @@ Phases execute in numeric order: 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 4. Event Type Grouping | 4/4 | Complete | 2026-03-16 |
-| 5. Auto-Sync and Countdown | 1/2 | In Progress|  |
+| 5. Auto-Sync and Countdown | 2/2 | Complete   | 2026-03-17 |
 | 6. Deduplication Preview | 0/TBD | Not started | - |
 | 7. Conflict Detection | 0/TBD | Not started | - |

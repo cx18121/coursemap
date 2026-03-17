@@ -53,7 +53,7 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 
 ### Deadline Countdown
 
-- [ ] **COUNTDOWN-01**: Dashboard shows upcoming Canvas deadlines grouped into Overdue / Due Today / Due Tomorrow / Due This Week
+- [x] **COUNTDOWN-01**: Dashboard shows upcoming Canvas deadlines grouped into Overdue / Due Today / Due Tomorrow / Due This Week
 
 ### Deduplication
 
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRON-01 | Phase 5 | Complete |
 | CRON-02 | Phase 5 | Complete |
 | CRON-03 | Phase 5 | Complete |
-| COUNTDOWN-01 | Phase 5 | Pending |
+| COUNTDOWN-01 | Phase 5 | Complete |
 | DEDUP-01 | Phase 6 | Pending |
 | DEDUP-02 | Phase 6 | Pending |
 | CONFLICT-01 | Phase 7 | Pending |

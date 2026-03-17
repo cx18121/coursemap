@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import CountdownPanel from './CountdownPanel';
 import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
@@ -86,7 +87,8 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [syncError, setSyncError] = useState<string | null>(null);
   const [canvasSummary, setCanvasSummary] = useState<SyncJobSummary | undefined>(undefined);
   const [mirrorSummary, setMirrorSummary] = useState<SyncJobSummary | undefined>(undefined);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | null>(null);
 
   const [courseTypeSettings, setCourseTypeSettings] = useState<CourseTypeSetting[]>(initialCourseTypeSettings);
 
@@ -140,11 +142,18 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     loadData();
   }, [hasCanvasUrl, hasSchoolAccount]);
 
-  // ---- Read last synced timestamp from localStorage on mount --------------
+  // ---- Read last synced timestamp from DB on mount ------------------------
 
   useEffect(() => {
-    const stored = localStorage.getItem('lastSyncedAt');
-    if (stored) setLastSyncedAt(Number(stored));
+    fetch('/api/sync/last')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
+        if (data.lastSyncStatus) setLastSyncStatus(data.lastSyncStatus);
+      })
+      .catch(() => {
+        // Non-fatal: timestamp will appear after first sync
+      });
   }, []);
 
   // ---- Cleanup polling on unmount ----------------------------------------
@@ -317,9 +326,15 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           setSyncStatus('complete');
           if (statusData.canvasSummary) setCanvasSummary(statusData.canvasSummary);
           if (statusData.mirrorSummary) setMirrorSummary(statusData.mirrorSummary);
-          const now = Date.now();
-          localStorage.setItem('lastSyncedAt', String(now));
-          setLastSyncedAt(now);
+
+          // Re-fetch sync status from DB (manual sync now writes to syncLog too)
+          fetch('/api/sync/last')
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
+              if (data.lastSyncStatus) setLastSyncStatus(data.lastSyncStatus);
+            })
+            .catch(() => {});
 
           // Refresh courseTypeSettings after sync — new types may have been discovered
           fetch('/api/user-settings')
@@ -380,6 +395,16 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     return result;
   }, [courses, courseTypeSettings]);
 
+  const countdownEvents = useMemo(() => {
+    return courses.flatMap((course) =>
+      course.events.map((event) => ({
+        ...event,
+        courseName: course.courseName,
+        courseEnabled: course.enabled,
+      }))
+    );
+  }, [courses]);
+
   // ---- Render ------------------------------------------------------------
 
   return (
@@ -402,9 +427,17 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           {lastSyncedAt !== null && (
             <p className="text-xs text-[--color-text-secondary]">
               Last synced {new Date(lastSyncedAt).toLocaleString()}
+              {lastSyncStatus === 'error' && (
+                <span className="text-red-400 ml-1">(failed)</span>
+              )}
             </p>
           )}
         </div>
+
+        {/* Countdown panel — upcoming deadlines */}
+        {!isLoading && hasCanvasUrl && courses.length > 0 && (
+          <CountdownPanel events={countdownEvents} />
+        )}
 
         {/* No Canvas URL message */}
         {!hasCanvasUrl && (

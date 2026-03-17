@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import CountdownPanel from './CountdownPanel';
+import DedupePanel from './DedupePanel';
 import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
@@ -437,6 +438,11 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         {/* Countdown panel — upcoming deadlines */}
         {!isLoading && hasCanvasUrl && courses.length > 0 && (
           <CountdownPanel events={countdownEvents} />
+        )}
+
+        {/* Dedup preview panel — Canvas sync preview */}
+        {!isLoading && hasCanvasUrl && courses.length > 0 && (
+          <DedupePanel />
         )}
 
         {/* No Canvas URL message */}

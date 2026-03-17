@@ -174,3 +174,16 @@ export const classifierCache = pgTable('classifier_cache', {
     .notNull()
     .defaultNow(),
 });
+
+// Sync log — one row per user, tracks last sync timestamp and outcome
+// Used by cron route (CRON-02) and /api/sync/last endpoint
+export const syncLog = pgTable('sync_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true, mode: 'date' }),
+  lastSyncStatus: text('last_sync_status', { enum: ['success', 'error'] }),
+  lastSyncError: text('last_sync_error'),
+});

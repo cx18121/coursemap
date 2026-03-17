@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { upsertSyncLog } from '@/lib/syncRunner';
 import { parseCanvasFeed } from '@/services/icalParser';
 import { filterEventsForSync } from '@/services/syncFilter';
 import { assignCourseColors } from '@/services/colorAssignment';
@@ -113,10 +114,12 @@ async function runSyncJob(jobId: string, userId: number, canvasIcsUrl: string) {
     job.canvasSummary = canvasSummary;
     job.mirrorSummary = mirrorSummary;
     job.completedAt = Date.now();
+    await upsertSyncLog(userId, 'success');
   } catch (err: unknown) {
     job.status = 'error';
     job.error = classifyError(err);
     job.completedAt = Date.now();
+    await upsertSyncLog(userId, 'error', classifyError(err));
   }
 }
 

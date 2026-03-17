@@ -116,7 +116,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Expanding the deduplication panel shows counts of how many events would be created, updated, or left unchanged by the next sync — without triggering an actual sync
   2. The dedup panel loads in under 500ms regardless of how many courses the user has, because it reads from a DB mirror rather than making live Google Calendar API calls
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — syncedEvents DB table schema + migration, wire upsert into gcalSync.ts after GCal insert/update
+- [ ] 06-02-PLAN.md — GET /api/sync/preview endpoint with hasChangedVsSnapshot diff, DedupePanel collapsible UI, SyncDashboard wiring
 
 ### Phase 7: Conflict Detection
 **Goal**: Users can see when a Canvas event they have manually edited in Google Calendar no longer matches the Canvas source, so they can decide which version to keep
@@ -136,5 +140,5 @@ Phases execute in numeric order: 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 4. Event Type Grouping | 4/4 | Complete | 2026-03-16 |
 | 5. Auto-Sync and Countdown | 2/2 | Complete   | 2026-03-17 |
-| 6. Deduplication Preview | 0/TBD | Not started | - |
+| 6. Deduplication Preview | 0/2 | Planning complete | - |
 | 7. Conflict Detection | 0/TBD | Not started | - |

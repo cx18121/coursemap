@@ -1,13 +1,29 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
+milestone_name: — Automation & Visibility
+status: planning
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-17T03:02:38.312Z"
+last_activity: 2026-03-16 — v1.1 roadmap created
+progress:
+  total_phases: 7
+  completed_phases: 4
+  total_plans: 15
+  completed_plans: 14
+  percent: 93
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.1
 milestone_name: Automation & Visibility
 status: planning
 stopped_at: Roadmap created for v1.1 — phases 5, 6, 7 defined; ready to plan Phase 5
 last_updated: "2026-03-16T00:00:00.000Z"
 last_activity: 2026-03-16 — v1.1 roadmap created, ready to plan Phase 5
 progress:
-  total_phases: 3
+  [█████████░] 93%
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -65,6 +81,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 11 | 2 tasks | 6 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P04 | 25 | 3 tasks | 8 files |
 | Phase 04-event-type-grouping-sub-calendars-per-course-and-type P03 | 3 | 1 tasks | 0 files |
+| Phase 05-auto-sync-and-countdown P01 | 15 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -118,6 +135,10 @@ Progress: [░░░░░░░░░░] 0%
 - [v1.1 Roadmap]: syncToken incremental sync required before enabling multi-user cron loop — prevents GCal per-minute quota exhaustion at 10+ users
 - [v1.1 Roadmap]: Conflict detection (Phase 7) depends on syncLog existing (Phase 5) — syncConflicts table requires lastSyncAt to compare against GCal updated timestamp
 - [v1.1 Roadmap]: Per-event conflict resolution UI (keep Canvas / keep GCal) scoped to v1.2, not Phase 7 — Phase 7 delivers detect-and-display only
+- [Phase 05-auto-sync-and-countdown]: syncLog upsert uses onConflictDoUpdate on userId (unique) — one row per user, idempotent cron runs
+- [Phase 05-auto-sync-and-countdown]: Cron route does NOT call getSession() — cron has no browser cookie; CRON_SECRET header auth only
+- [Phase 05-auto-sync-and-countdown]: runSyncForUser in syncRunner.ts is simplified (no progress callbacks) for cron; manual sync keeps its own runSyncJob with in-memory progress tracking
+- [Phase 05-auto-sync-and-countdown]: Manual sync route also writes to syncLog on completion/error via upsertSyncLog — single read path for /api/sync/last
 
 ### Roadmap Evolution
 
@@ -138,6 +159,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T00:00:00.000Z
-Stopped at: v1.1 roadmap created — phases 5, 6, 7 defined; ready to plan Phase 5
+Last session: 2026-03-17T03:02:38.289Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

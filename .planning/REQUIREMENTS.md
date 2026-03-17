@@ -47,9 +47,9 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 
 ### Auto-Sync
 
-- [ ] **CRON-01**: Daily Vercel cron automatically syncs Canvas and school calendar for every registered user without manual action
-- [ ] **CRON-02**: Dashboard shows accurate last-synced timestamp and status after a background cron run (not just after manual syncs)
-- [ ] **CRON-03**: A single user's auth failure or sync error does not abort the cron loop for other users
+- [x] **CRON-01**: Daily Vercel cron automatically syncs Canvas and school calendar for every registered user without manual action
+- [x] **CRON-02**: Dashboard shows accurate last-synced timestamp and status after a background cron run (not just after manual syncs)
+- [x] **CRON-03**: A single user's auth failure or sync error does not abort the cron loop for other users
 
 ### Deadline Countdown
 
@@ -123,9 +123,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GROUP-04 | Phase 4 | Complete |
 | GROUP-05 | Phase 4 | Complete |
 | GROUP-06 | Phase 4 | Complete |
-| CRON-01 | Phase 5 | Pending |
-| CRON-02 | Phase 5 | Pending |
-| CRON-03 | Phase 5 | Pending |
+| CRON-01 | Phase 5 | Complete |
+| CRON-02 | Phase 5 | Complete |
+| CRON-03 | Phase 5 | Complete |
 | COUNTDOWN-01 | Phase 5 | Pending |
 | DEDUP-01 | Phase 6 | Pending |
 | DEDUP-02 | Phase 6 | Pending |

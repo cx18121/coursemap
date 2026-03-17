@@ -19,7 +19,7 @@ import { CanvasEvent } from './icalParser';
 import { getFreshAccessToken } from '@/lib/tokens';
 import { ensureTypeSubCalendar } from './gcalSubcalendars';
 import { db } from '@/lib/db';
-import { courseTypeSettings } from '@/lib/db/schema';
+import { courseTypeSettings, syncedEvents } from '@/lib/db/schema';
 
 /**
  * Default color IDs for each event type.
@@ -293,9 +293,49 @@ export async function syncCanvasEvents(
           const existing = existingByUid.get(event.uid);
           if (!existing) {
             await calendar.events.insert({ calendarId: subCalId, requestBody: gcalEvent });
+            await db.insert(syncedEvents).values({
+              userId,
+              uid: event.uid,
+              summary: event.summary,
+              description: event.description ?? null,
+              startAt: new Date(event.start),
+              endAt: new Date(event.end),
+              gcalCalendarId: subCalId,
+              syncedAt: new Date(),
+            }).onConflictDoUpdate({
+              target: [syncedEvents.userId, syncedEvents.uid],
+              set: {
+                summary: event.summary,
+                description: event.description ?? null,
+                startAt: new Date(event.start),
+                endAt: new Date(event.end),
+                gcalCalendarId: subCalId,
+                syncedAt: new Date(),
+              },
+            });
             summary.inserted++;
           } else if (hasChanged(event, existing)) {
             await calendar.events.update({ calendarId: subCalId, eventId: existing.id!, requestBody: gcalEvent });
+            await db.insert(syncedEvents).values({
+              userId,
+              uid: event.uid,
+              summary: event.summary,
+              description: event.description ?? null,
+              startAt: new Date(event.start),
+              endAt: new Date(event.end),
+              gcalCalendarId: subCalId,
+              syncedAt: new Date(),
+            }).onConflictDoUpdate({
+              target: [syncedEvents.userId, syncedEvents.uid],
+              set: {
+                summary: event.summary,
+                description: event.description ?? null,
+                startAt: new Date(event.start),
+                endAt: new Date(event.end),
+                gcalCalendarId: subCalId,
+                syncedAt: new Date(),
+              },
+            });
             summary.updated++;
           } else {
             summary.skipped++;

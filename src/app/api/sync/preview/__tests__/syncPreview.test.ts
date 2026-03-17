@@ -53,8 +53,8 @@ function makeCanvasEvent(overrides: Partial<{
   uid: string;
   summary: string;
   description: string;
-  start: string;
-  end: string;
+  start: Date;
+  end: Date;
   courseName: string;
   eventType: string;
   cleanedTitle: string;
@@ -63,8 +63,8 @@ function makeCanvasEvent(overrides: Partial<{
     uid: 'event-uid-1',
     summary: 'Assignment 1',
     description: 'Do the thing',
-    start: '2026-04-01T10:00:00Z',
-    end: '2026-04-01T11:00:00Z',
+    start: new Date('2026-04-01T10:00:00Z'),
+    end: new Date('2026-04-01T11:00:00Z'),
     courseName: 'CS101',
     eventType: 'Assignments',
     cleanedTitle: 'Assignment 1',

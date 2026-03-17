@@ -42,9 +42,13 @@ jest.mock('@/lib/tokens', () => ({
   getFreshAccessToken: mockGetFreshAccessToken,
 }));
 
-// Mock @/lib/db — support insert().values().onConflictDoNothing() chain
+// Mock @/lib/db — support insert().values().onConflictDoNothing() and .onConflictDoUpdate() chains
 const mockOnConflictDoNothing = jest.fn().mockResolvedValue(undefined);
-const mockValues = jest.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
+const mockOnConflictDoUpdate = jest.fn().mockResolvedValue(undefined);
+const mockValues = jest.fn().mockReturnValue({
+  onConflictDoNothing: mockOnConflictDoNothing,
+  onConflictDoUpdate: mockOnConflictDoUpdate,
+});
 const mockDb = {
   query: {
     courseTypeCalendars: {
@@ -84,6 +88,16 @@ jest.mock('@/lib/db/schema', () => ({
     enabled: 'enabled',
     colorId: 'colorId',
   },
+  syncedEvents: {
+    userId: 'userId',
+    uid: 'uid',
+    summary: 'summary',
+    description: 'description',
+    startAt: 'startAt',
+    endAt: 'endAt',
+    gcalCalendarId: 'gcalCalendarId',
+    syncedAt: 'syncedAt',
+  },
 }));
 
 import { syncCanvasEvents, SyncProgress } from './gcalSync';
@@ -113,8 +127,12 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
     mockDb.query.courseTypeSettings.findMany.mockResolvedValue([]);
     // Restore insert chain after clearAllMocks
     mockDb.insert.mockReturnValue({ values: mockValues });
-    mockValues.mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
+    mockValues.mockReturnValue({
+      onConflictDoNothing: mockOnConflictDoNothing,
+      onConflictDoUpdate: mockOnConflictDoUpdate,
+    });
     mockOnConflictDoNothing.mockResolvedValue(undefined);
+    mockOnConflictDoUpdate.mockResolvedValue(undefined);
     // Default: calendars.insert returns a new calendar
     mockCalendarsInsert.mockResolvedValue({ data: { id: 'new-cal-id-123' } });
     // Default: calendarList.patch succeeds (sets sub-calendar color)
@@ -518,6 +536,70 @@ describe('gcalSync - type-grouped sync with per-type filters', () => {
       await expect(
         syncCanvasEvents(USER_ID, [makeEvent()], {})
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('syncedEvents DB mirror writes (DEDUP-02)', () => {
+    const { syncedEvents: mockSyncedEvents } = jest.requireMock('@/lib/db/schema');
+
+    it('writes syncedEvents row after successful GCal insert', async () => {
+      const event = makeEvent({ uid: 'new-uid' });
+      mockEventsList.mockResolvedValue({ data: { items: [] } });
+
+      await syncCanvasEvents(USER_ID, [event], {});
+
+      // GCal insert should have succeeded
+      expect(mockEventsInsert).toHaveBeenCalledTimes(1);
+      // db.insert should have been called with syncedEvents table
+      expect(mockDb.insert).toHaveBeenCalledWith(mockSyncedEvents);
+      // onConflictDoUpdate should have been called (not onConflictDoNothing)
+      expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('writes syncedEvents row after successful GCal update', async () => {
+      const event = makeEvent({ uid: 'uid-changed', summary: 'Updated Title' });
+      mockEventsList.mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: 'gcal-event-id',
+              summary: 'Old Title', // different summary triggers update
+              start: { dateTime: event.start.toISOString() },
+              end: { dateTime: event.end.toISOString() },
+              description: event.description,
+              extendedProperties: {
+                private: { canvasCanvasUid: 'uid-changed' },
+              },
+            },
+          ],
+        },
+      });
+
+      await syncCanvasEvents(USER_ID, [event], {});
+
+      // GCal update should have succeeded
+      expect(mockEventsUpdate).toHaveBeenCalledTimes(1);
+      // db.insert should have been called with syncedEvents table
+      expect(mockDb.insert).toHaveBeenCalledWith(mockSyncedEvents);
+      // onConflictDoUpdate should have been called
+      expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT write syncedEvents when GCal insert fails', async () => {
+      const event = makeEvent({ uid: 'fail-uid' });
+      mockEventsList.mockResolvedValue({ data: { items: [] } });
+      // Make GCal insert throw
+      mockEventsInsert.mockRejectedValue(new Error('GCal API quota exceeded'));
+
+      const summary = await syncCanvasEvents(USER_ID, [event], {});
+
+      expect(summary.failed).toBe(1);
+      // db.insert should NOT have been called with syncedEvents
+      // (it may have been called for courseTypeSettings, so check syncedEvents specifically)
+      const syncedEventsInsertCalls = mockDb.insert.mock.calls.filter(
+        (call: unknown[]) => call[0] === mockSyncedEvents
+      );
+      expect(syncedEventsInsertCalls).toHaveLength(0);
     });
   });
 });

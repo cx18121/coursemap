@@ -3,7 +3,7 @@ import { getSession } from '@/lib/session';
 import { db } from '@/lib/db';
 import { users, syncedEvents } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { parseCanvasFeed } from '@/services/icalParser';
+import { parseCanvasFeed, type CanvasEvent } from '@/services/icalParser';
 import { filterEventsForSync } from '@/services/syncFilter';
 import { loadCourseTypeSettings } from '@/services/gcalSync';
 
@@ -14,25 +14,19 @@ interface SyncedEventSnapshot {
   endAt: Date;
 }
 
-interface IncomingEventFields {
-  summary: string;
-  description: string;
-  /** ISO 8601 string from CanvasEvent */
-  start: string;
-  /** ISO 8601 string from CanvasEvent */
-  end: string;
-}
-
+/**
+ * Compares a Canvas event against a syncedEvents DB snapshot.
+ * Returns true if any field has changed since the last sync.
+ * CanvasEvent.start and .end are Date objects.
+ */
 function hasChangedVsSnapshot(
-  incoming: IncomingEventFields,
+  incoming: CanvasEvent,
   snapshot: SyncedEventSnapshot
 ): boolean {
   if (incoming.summary !== snapshot.summary) return true;
   if ((incoming.description ?? null) !== (snapshot.description ?? null)) return true;
-  const incomingStartMs = Date.parse(incoming.start);
-  const incomingEndMs = Date.parse(incoming.end);
-  if (incomingStartMs !== snapshot.startAt.getTime()) return true;
-  if (incomingEndMs !== snapshot.endAt.getTime()) return true;
+  if (incoming.start.getTime() !== snapshot.startAt.getTime()) return true;
+  if (incoming.end.getTime() !== snapshot.endAt.getTime()) return true;
   return false;
 }
 

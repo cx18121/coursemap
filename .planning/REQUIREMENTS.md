@@ -65,6 +65,14 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 - [x] **CONFLICT-01**: Dashboard shows how many synced events have been modified in Google Calendar since the last sync
 - [x] **CONFLICT-02**: User can view a list of those conflicted events (Canvas title, due date, when GCal was modified)
 
+### Dashboard UX
+
+- [ ] **UX-01**: Dashboard uses a two-tab layout (Overview / Courses) with Overview as the default tab
+- [ ] **UX-02**: Overview tab shows countdown deadlines as the primary hero section with three summary stat cards (Deadlines, Synced, Conflicts) that expand detail panels one at a time
+- [ ] **UX-03**: Courses tab displays courses as a compact card grid (2-col mobile, 3-col desktop) replacing the vertical accordion list
+- [ ] **UX-04**: Clicking a course card opens a slide-in drawer from the right with full course details (event list, type checkboxes, color picker)
+- [ ] **UX-05**: Sync button and summary render inline in the Overview tab instead of fixed at the bottom of the viewport
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -131,13 +139,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEDUP-02 | Phase 6 | Complete |
 | CONFLICT-01 | Phase 7 | Complete |
 | CONFLICT-02 | Phase 7 | Complete |
+| UX-01 | Phase 8 | Planned |
+| UX-02 | Phase 8 | Planned |
+| UX-03 | Phase 8 | Planned |
+| UX-04 | Phase 8 | Planned |
+| UX-05 | Phase 8 | Planned |
 
 **Coverage:**
-- v1 requirements: 21 total — all complete ✓
-- v1.1 requirements: 8 total
-- Mapped to phases: 8
-- Unmapped: 0 ✓
+- v1 requirements: 21 total — all complete
+- v1.1 requirements: 13 total (8 automation/visibility + 5 dashboard UX)
+- Mapped to phases: 13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-16 after v1.1 milestone start*
+*Last updated: 2026-03-19 after Phase 8 planning*

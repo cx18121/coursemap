@@ -88,6 +88,23 @@ Plans:
 - [ ] 04-03-PLAN.md — syncCanvasEvents typeGroupingEnabled routing branch + test coverage
 - [ ] 04-04-PLAN.md — /api/user-settings PATCH route + TypeGroupingToggle UI + SyncDashboard wiring
 
+### Phase 8: Dashboard UX redesign — replace long scrolling list with organized layout
+
+**Goal:** Replace the long-scrolling dashboard with a two-tab layout (Overview / Courses) featuring stat cards, a course card grid, and a slide-in drawer for course details
+**Requirements**: UX-01, UX-02, UX-03, UX-04, UX-05
+**Depends on:** Phase 7
+**Success Criteria** (what must be TRUE):
+  1. Dashboard displays two tabs (Overview and Courses) with Overview as default
+  2. Overview tab shows countdown deadlines as primary hero, three stat cards (Deadlines/Synced/Conflicts), and inline sync button
+  3. Stat cards expand detail panels one at a time below the card row
+  4. Courses tab shows a compact card grid (2-col mobile, 3-col desktop) with slide-in drawer for course details
+  5. All existing functionality (toggles, sync, color picker, event exclusions) works unchanged
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — New components (StatCard, CourseCard, CourseDrawer) + SyncButton/SyncSummary inline prop
+- [ ] 08-02-PLAN.md — SyncDashboard tabbed layout refactor + stat count fetching + visual verification
+
 ---
 
 ## Milestone v1.1 — Automation & Visibility

@@ -14,6 +14,7 @@ interface SyncSummaryProps {
   canvasSummary?: SyncJobSummary;
   mirrorSummary?: SyncJobSummary;
   onDismiss: () => void;
+  inline?: boolean;
 }
 
 function SummaryLine({ label, s }: { label: string; s: SyncJobSummary }) {

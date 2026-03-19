@@ -56,11 +56,11 @@ Source: Inferred from existing components (`p-4`, `gap-3`, `px-2 py-0.5`) and RE
 |------|------|--------|-------------|-------|
 | Display | 24px (`text-2xl`) | 600 (`font-semibold`) | 1.2 | Dashboard `<h1>` heading |
 | Heading | 12px (`text-xs`) | 600 (`font-semibold`) | 1.2 | Section labels: uppercase tracking-wider (e.g. "CANVAS COURSES", bucket headers) |
-| Body | 14px (`text-sm`) | 500 (`font-medium`) for interactive; 400 for descriptive | 1.5 | Course names in cards, event list items, panel text, drawer header |
+| Body | 14px (`text-sm`) | 400 (`font-normal`) | 1.5 | Course names in cards, event list items, panel text, drawer header |
 | Label | 12px (`text-xs`) | 400 (`font-normal`) | 1.4 | Event counts ("35 events"), timestamps, secondary metadata |
 
 Notes:
-- Only two weights are used in practice: 400 (normal) and 600 (semibold). `font-medium` (500) is used for interactive element labels as a midpoint but maps to the 400/600 binary.
+- Two weights: 400 (normal) and 600 (semibold). Tailwind's `font-medium` class may be used in implementation as a visual approximation within the 400–600 range but is not a declared contract weight.
 - Tailwind's `text-xs` = 12px, `text-sm` = 14px, `text-2xl` = 24px — these are the only four sizes in use.
 
 Source: Direct read of `SyncDashboard.tsx`, `CountdownPanel.tsx`, `CourseAccordion.tsx`. No new sizes introduced in Phase 8.
@@ -128,7 +128,7 @@ Grid: `grid grid-cols-2 sm:grid-cols-3 gap-3`
 
 Card layout (top-to-bottom):
 1. Top row: 16px color swatch (`w-4 h-4 rounded-full`) LEFT + checkbox toggle RIGHT (`w-4 h-4 rounded accent-indigo-500`)
-2. Course name: 14px, weight 500, `text-[--color-text-primary] line-clamp-2`
+2. Course name: 14px, weight 400, `text-[--color-text-primary] line-clamp-2`
 3. Event count: 12px, weight 400, `text-[--color-text-secondary]` — format: "{N} events"
 
 Toggle checkbox uses `e.stopPropagation()` to prevent card click opening drawer.

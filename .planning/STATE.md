@@ -3,14 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Automation & Visibility
 status: planning
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-19T16:59:08.069Z"
-last_activity: 2026-03-16 — v1.1 roadmap created
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-19T19:36:05.478Z"
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 21
+  completed_plans: 20
 ---
 
 ---
@@ -51,16 +50,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** All of a student's deadlines and events — from Canvas, school Google, and personal Google — visible in one calendar on one account.
-**Current focus:** Phase 5 — Auto-Sync and Countdown
+**Current focus:** Phase 08 — dashboard-ux-redesign-replace-long-scrolling-list-with-organized-layout
 
 ## Current Position
 
-Phase: 5 — Auto-Sync and Countdown
-Plan: —
-Status: Roadmap defined, ready to plan Phase 5
-Last activity: 2026-03-16 — v1.1 roadmap created
-
-Progress: [░░░░░░░░░░] 0%
+Phase: 08 (dashboard-ux-redesign-replace-long-scrolling-list-with-organized-layout) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -104,6 +99,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 06-deduplication-preview P01 | 14 | 2 tasks | 5 files |
 | Phase 07-conflict-detection P01 | 5 | 2 tasks | 4 files |
 | Phase 07-conflict-detection P02 | 25 | 2 tasks | 4 files |
+| Phase 08-dashboard-ux-redesign-replace-long-scrolling-list-with-organized-layout P01 | 7 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -173,6 +169,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 07-conflict-detection]: GRACE_MS = 60_000 constant in route (not env-configurable) — suppresses GCal API false positives from sync-triggered updated bumps
 - [Phase 07-conflict-detection]: key={syncVersion} on ConflictPanel forces React remount on sync complete to clear cached conflict data without prop drilling
 - [Phase 07-conflict-detection]: Defensive null guard in batch loop: skip rows with null gcalEventId before events.get call even after WHERE isNotNull filter
+- [Phase 08]: CourseDrawer always renders at translate-x-0 with CSS transition-transform — tailwindcss-animate not installed, no mount animation for MVP
+- [Phase 08]: SyncButton inline variant: shared JSX extracted to content variable; inline=true renders flow div, false preserves fixed bottom-0 positioning
+- [Phase 08]: SyncSummary inline prop is interface-only; fixed wrapper lives in SyncDashboard, not inside SyncSummary component
 
 ### Roadmap Evolution
 
@@ -194,6 +193,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T16:59:07.855Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-dashboard-ux-redesign-replace-long-scrolling-list-with-organized-layout/08-CONTEXT.md
+Last session: 2026-03-19T19:36:05.435Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

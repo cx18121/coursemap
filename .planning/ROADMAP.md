@@ -99,7 +99,7 @@ Plans:
   3. Stat cards expand detail panels one at a time below the card row
   4. Courses tab shows a compact card grid (2-col mobile, 3-col desktop) with slide-in drawer for course details
   5. All existing functionality (toggles, sync, color picker, event exclusions) works unchanged
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 08-01-PLAN.md — New components (StatCard, CourseCard, CourseDrawer) + SyncButton/SyncSummary inline prop

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 
-type Bucket = 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'later';
+type Bucket = 'today' | 'tomorrow' | 'this_week' | 'later';
 
 interface CountdownEvent {
   uid: string;
@@ -20,13 +20,13 @@ interface CountdownPanelProps {
   events: CountdownEvent[];
 }
 
-export function getBucket(dueDate: Date): Bucket {
+export function getBucket(dueDate: Date): Bucket | null {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
   const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
 
-  if (diffDays < 0) return 'overdue';
+  if (diffDays < 0) return null; // past — exclude
   if (diffDays === 0) return 'today';
   if (diffDays === 1) return 'tomorrow';
   if (diffDays <= 7) return 'this_week';
@@ -34,14 +34,13 @@ export function getBucket(dueDate: Date): Bucket {
 }
 
 const BUCKET_LABELS: Record<Bucket, string> = {
-  overdue: 'Overdue',
   today: 'Due Today',
   tomorrow: 'Due Tomorrow',
   this_week: 'Due This Week',
   later: 'Later',
 };
 
-const BUCKET_ORDER: Bucket[] = ['overdue', 'today', 'tomorrow', 'this_week'];
+const BUCKET_ORDER: Bucket[] = ['today', 'tomorrow', 'this_week'];
 // Exclude 'later' from display — only show actionable deadlines
 
 export default function CountdownPanel({ events }: CountdownPanelProps) {
@@ -53,12 +52,12 @@ export default function CountdownPanel({ events }: CountdownPanelProps) {
     // Filter: only include non-excluded events from enabled courses
     const active = events.filter((e) => !e.excluded && e.courseEnabled);
     const groups: Record<Bucket, CountdownEvent[]> = {
-      overdue: [], today: [], tomorrow: [], this_week: [], later: [],
+      today: [], tomorrow: [], this_week: [], later: [],
     };
     for (const event of active) {
       const dueDate = new Date(event.end || event.start);
       const bucket = getBucket(dueDate);
-      groups[bucket].push(event);
+      if (bucket !== null) groups[bucket].push(event);
     }
     return groups;
   }, [events, mounted]);
@@ -82,10 +81,9 @@ export default function CountdownPanel({ events }: CountdownPanelProps) {
       {BUCKET_ORDER.map((bucket) => {
         const items = bucketed[bucket];
         if (items.length === 0) return null;
-        const isOverdue = bucket === 'overdue';
         return (
-          <div key={bucket} className={`rounded-2xl border p-4 space-y-2 ${isOverdue ? 'bg-red-500/10 border-red-500/30' : 'bg-white/10 backdrop-blur-lg border-[--color-border]'}`}>
-            <h3 className={`text-xs font-semibold uppercase tracking-wider ${isOverdue ? 'text-red-400' : 'text-[--color-text-secondary]'}`}>
+          <div key={bucket} className="rounded-2xl border p-4 space-y-2 bg-white/10 backdrop-blur-lg border-[--color-border]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary]">
               {BUCKET_LABELS[bucket]} ({items.length})
             </h3>
             <ul className="space-y-1">

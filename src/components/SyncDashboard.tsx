@@ -8,7 +8,7 @@ import CourseAccordion from './CourseAccordion';
 import SchoolCalendarList from './SchoolCalendarList';
 import SyncButton from './SyncButton';
 import SyncSummary from './SyncSummary';
-import TypeGroupingToggle, { CourseTypeSetting } from './TypeGroupingToggle';
+import { CourseTypeSetting } from './TypeGroupingToggle';
 
 // ---- Constants -----------------------------------------------------------
 
@@ -402,14 +402,23 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   }, [courses, courseTypeSettings]);
 
   const countdownEvents = useMemo(() => {
+    const enabledTypeMap = new Map<string, boolean>();
+    for (const s of derivedCourseTypeSettings) {
+      enabledTypeMap.set(`${s.courseName}:${s.eventType}`, s.enabled);
+    }
     return courses.flatMap((course) =>
-      course.events.map((event) => ({
-        ...event,
-        courseName: course.courseName,
-        courseEnabled: course.enabled,
-      }))
+      course.events
+        .filter((event) => {
+          const key = `${course.courseName}:${event.eventType}`;
+          return enabledTypeMap.get(key) !== false;
+        })
+        .map((event) => ({
+          ...event,
+          courseName: course.courseName,
+          courseEnabled: course.enabled,
+        }))
     );
-  }, [courses]);
+  }, [courses, derivedCourseTypeSettings]);
 
   // ---- Render ------------------------------------------------------------
 
@@ -480,15 +489,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           </div>
         )}
 
-        {/* Event type filter — per-course, shown when courses are loaded */}
-        {!isLoading && hasCanvasUrl && courses.length > 0 && (
-          <TypeGroupingToggle
-            courseTypeSettings={derivedCourseTypeSettings}
-            onToggle={handleToggleEventType}
-            onColorChange={handleChangeEventTypeColor}
-          />
-        )}
-
         {/* Canvas courses section */}
         {!isLoading && hasCanvasUrl && courses.length > 0 && (
           <section className="space-y-3">
@@ -502,9 +502,12 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
                 colorId={course.colorId}
                 enabled={course.enabled}
                 events={course.events}
+                courseTypeSettings={derivedCourseTypeSettings.filter((s) => s.courseName === course.courseName)}
                 onToggleCourse={handleToggleCourse}
                 onToggleEvent={handleToggleEvent}
                 onChangeColor={handleChangeColor}
+                onToggleEventType={handleToggleEventType}
+                onChangeEventTypeColor={handleChangeEventTypeColor}
               />
             ))}
           </section>

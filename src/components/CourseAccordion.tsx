@@ -22,6 +22,7 @@ interface CourseAccordionProps {
   enabled: boolean;
   events: CourseEvent[];
   courseTypeSettings: CourseTypeSetting[];
+  defaultExpanded?: boolean;
   onToggleCourse: (courseName: string, enabled: boolean) => void;
   onToggleEvent: (uid: string, excluded: boolean) => void;
   onChangeColor: (courseName: string, colorId: string) => void;
@@ -35,13 +36,14 @@ export default function CourseAccordion({
   enabled,
   events,
   courseTypeSettings,
+  defaultExpanded,
   onToggleCourse,
   onToggleEvent,
   onChangeColor,
   onToggleEventType,
   onChangeEventTypeColor,
 }: CourseAccordionProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [openTypePickerKey, setOpenTypePickerKey] = useState<string | null>(null);
   const colorDotRef = useRef<HTMLButtonElement>(null);

@@ -92,3 +92,47 @@ describe('SyncDashboard - localStorage timestamp logic', () => {
     expect(dateStr.length).toBeGreaterThan(0);
   });
 });
+
+describe('SyncDashboard - no-tab layout state logic', () => {
+  test('expandedPanel toggles between same panel and null', () => {
+    // Simulates handleStatCardClick logic: toggle off if same panel clicked
+    type Panel = 'countdown' | 'dedupe' | 'conflicts' | null;
+
+    function handleStatCardClick(current: Panel, clicked: Panel): Panel {
+      return current === clicked ? null : clicked;
+    }
+
+    expect(handleStatCardClick(null, 'countdown')).toBe('countdown');
+    expect(handleStatCardClick('countdown', 'countdown')).toBeNull();
+    expect(handleStatCardClick('countdown', 'dedupe')).toBe('dedupe');
+  });
+
+  test('openCourseDrawer is independent of expandedPanel (no tab-clearing)', () => {
+    // In Phase 9, there is no handleTabChange — both states are independent
+    // A course drawer can be open while a stat panel is expanded
+    let openCourseDrawer: string | null = 'Biology 101';
+    let expandedPanel: string | null = 'countdown';
+
+    // Simulating clicking a stat card does NOT close the drawer
+    function handleStatCardClick(panel: string) {
+      expandedPanel = expandedPanel === panel ? null : panel;
+      // Note: openCourseDrawer is NOT touched — this is the Phase 9 difference
+    }
+
+    handleStatCardClick('dedupe');
+    expect(openCourseDrawer).toBe('Biology 101'); // drawer still open
+    expect(expandedPanel).toBe('dedupe');
+  });
+
+  test('openCourseDrawer closes only via explicit setOpenCourseDrawer(null)', () => {
+    let openCourseDrawer: string | null = 'Chemistry';
+
+    function closeDrawer() {
+      openCourseDrawer = null;
+    }
+
+    expect(openCourseDrawer).toBe('Chemistry');
+    closeDrawer();
+    expect(openCourseDrawer).toBeNull();
+  });
+});

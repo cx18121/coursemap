@@ -9,7 +9,7 @@ import SyncButton from './SyncButton';
 import SyncSummary from './SyncSummary';
 import { CourseTypeSetting } from './TypeGroupingToggle';
 import StatCard from './StatCard';
-import CourseCard from './CourseCard';
+import CourseRow from './CourseRow';
 import CourseDrawer from './CourseDrawer';
 
 // ---- Constants -----------------------------------------------------------
@@ -97,8 +97,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
   const [courseTypeSettings, setCourseTypeSettings] = useState<CourseTypeSetting[]>(initialCourseTypeSettings);
 
-  // New tab/panel/drawer state
-  const [activeTab, setActiveTab] = useState<'overview' | 'courses'>('overview');
+  // Panel/drawer state
   const [expandedPanel, setExpandedPanel] = useState<'countdown' | 'dedupe' | 'conflicts' | null>(null);
   const [openCourseDrawer, setOpenCourseDrawer] = useState<string | null>(null);
   const [dedupeCount, setDedupeCount] = useState<number | string>('--');
@@ -410,15 +409,10 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
     return jobId;
   }, []);
 
-  // ---- Tab/panel/drawer handlers -----------------------------------------
+  // ---- Panel/drawer handlers ---------------------------------------------
 
   function handleStatCardClick(panel: 'countdown' | 'dedupe' | 'conflicts') {
     setExpandedPanel((prev) => (prev === panel ? null : panel));
-  }
-
-  function handleTabChange(tab: 'overview' | 'courses') {
-    setActiveTab(tab);
-    setOpenCourseDrawer(null); // close drawer when switching tabs
   }
 
   // ---- Derived state -----------------------------------------------------
@@ -490,21 +484,18 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
   return (
     <div className="min-h-screen">
-      {/* Background glow — keep unchanged */}
+      {/* Background glow — unchanged */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/[0.04] rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[120px]" />
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-12 space-y-6">
-        {/* Header */}
-        <div className="space-y-1">
+      <div className="max-w-4xl mx-auto px-4 pt-8 pb-8">
+        {/* Page header */}
+        <div className="space-y-1 mb-6">
           <h1 className="text-2xl font-semibold text-[--color-text-primary] tracking-tight">
             Welcome, {userName}
           </h1>
-          <p className="text-sm text-[--color-text-secondary]">
-            Manage your Canvas courses and sync them to Google Calendar.
-          </p>
           {lastSyncedAt !== null && (
             <p className="text-xs text-[--color-text-secondary]">
               Last synced {new Date(lastSyncedAt).toLocaleString()}
@@ -513,23 +504,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
               )}
             </p>
           )}
-        </div>
-
-        {/* Tab strip */}
-        <div className="flex gap-1 border-b border-[--color-border]">
-          {(['overview', 'courses'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => handleTabChange(tab)}
-              className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                activeTab === tab
-                  ? 'text-[--color-text-primary] border-b-2 border-indigo-400 -mb-px'
-                  : 'text-[--color-text-secondary] hover:text-[--color-text-primary]'
-              }`}
-            >
-              {tab === 'overview' ? 'Overview' : 'Courses'}
-            </button>
-          ))}
         </div>
 
         {/* Loading state */}
@@ -542,33 +516,30 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
         {/* Load error */}
         {loadError && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-4">
             <p className="text-sm text-red-400">{loadError}</p>
           </div>
         )}
 
-        {/* ===== OVERVIEW TAB ===== */}
-        {activeTab === 'overview' && !isLoading && (
-          <div className="space-y-6">
-            {/* No Canvas URL message */}
-            {!hasCanvasUrl && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5">
-                <p className="text-sm text-[--color-text-primary] font-medium">Canvas feed not configured</p>
-                <p className="text-xs text-[--color-text-secondary] mt-1">
-                  Add your Canvas ICS URL in Settings to start syncing assignments.
-                </p>
-              </div>
-            )}
+        {/* No Canvas URL message */}
+        {!isLoading && !hasCanvasUrl && (
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5 mb-4">
+            <p className="text-sm text-[--color-text-primary] font-medium">Canvas feed not configured</p>
+            <p className="text-xs text-[--color-text-secondary] mt-1">
+              Add your Canvas ICS URL in Settings to start syncing assignments.
+            </p>
+          </div>
+        )}
 
-            {/* Countdown hero — largest visual weight */}
-            {hasCanvasUrl && courses.length > 0 && (
-              <CountdownPanel events={countdownEvents} />
-            )}
+        {/* Two-column horizontal layout */}
+        {!isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 items-start">
 
-            {/* Stat card row — three side-by-side */}
-            {hasCanvasUrl && courses.length > 0 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
+            {/* ── LEFT RAIL: stat cards + expanded panel + sync ── */}
+            <aside className="flex flex-col gap-3">
+              {/* Stat cards — stacked vertically */}
+              {hasCanvasUrl && courses.length > 0 && (
+                <div className="flex flex-col gap-3">
                   <StatCard
                     label="Deadlines"
                     value={upcomingDeadlineCount}
@@ -588,58 +559,44 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
                     onClick={() => handleStatCardClick('conflicts')}
                   />
                 </div>
+              )}
 
-                {/* Expanded detail area — full width below card row */}
-                {expandedPanel === 'countdown' && <CountdownPanel events={countdownEvents} />}
-                {expandedPanel === 'dedupe' && <DedupePanel />}
-                {expandedPanel === 'conflicts' && <ConflictPanel key={syncVersion} />}
-              </div>
-            )}
+              {/* Expanded detail panel — below stat card stack */}
+              {expandedPanel === 'countdown' && <CountdownPanel events={countdownEvents} />}
+              {expandedPanel === 'dedupe' && <DedupePanel />}
+              {expandedPanel === 'conflicts' && <ConflictPanel key={syncVersion} />}
 
-            {/* Inline sync button + summary */}
-            <div className="space-y-3">
-              {(canvasSummary || mirrorSummary) && (
-                <SyncSummary
-                  canvasSummary={canvasSummary}
-                  mirrorSummary={mirrorSummary}
-                  onDismiss={clearSummary}
+              {/* Sync button + summary — always last in left rail */}
+              <div className="flex flex-col gap-2">
+                {(canvasSummary || mirrorSummary) && (
+                  <SyncSummary
+                    canvasSummary={canvasSummary}
+                    mirrorSummary={mirrorSummary}
+                    onDismiss={clearSummary}
+                    inline
+                  />
+                )}
+                <SyncButton
+                  onSync={handleSync}
+                  syncStatus={syncStatus}
+                  progress={syncProgress}
+                  syncError={syncError}
+                  disabled={!hasAnyCourseEnabled || syncStatus === 'running'}
                   inline
                 />
-              )}
-              <SyncButton
-                onSync={handleSync}
-                syncStatus={syncStatus}
-                progress={syncProgress}
-                syncError={syncError}
-                disabled={!hasAnyCourseEnabled || syncStatus === 'running'}
-                inline
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ===== COURSES TAB ===== */}
-        {activeTab === 'courses' && !isLoading && (
-          <div className="space-y-6">
-            {/* No Canvas URL */}
-            {!hasCanvasUrl && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5">
-                <p className="text-sm text-[--color-text-primary] font-medium">Canvas feed not configured</p>
-                <p className="text-xs text-[--color-text-secondary] mt-1">
-                  Add your Canvas ICS URL in Settings to start syncing assignments.
-                </p>
               </div>
-            )}
+            </aside>
 
-            {/* Course card grid */}
-            {hasCanvasUrl && courses.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-1">
-                  Canvas Courses
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* ── RIGHT COLUMN: course rows + school calendars ── */}
+            <main className="flex flex-col gap-1">
+              {/* Canvas courses — compact rows */}
+              {hasCanvasUrl && courses.length > 0 && (
+                <section className="space-y-1">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-3 mb-2">
+                    Canvas Courses
+                  </h2>
                   {courses.map((course) => (
-                    <CourseCard
+                    <CourseRow
                       key={course.courseName}
                       courseName={course.courseName}
                       colorId={course.colorId}
@@ -649,34 +606,34 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
                       onToggle={handleToggleCourse}
                     />
                   ))}
+                </section>
+              )}
+
+              {/* No courses found */}
+              {hasCanvasUrl && courses.length === 0 && !loadError && (
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5">
+                  <p className="text-sm text-[--color-text-secondary]">No courses found in your Canvas feed.</p>
                 </div>
-              </section>
-            )}
+              )}
 
-            {/* No courses found */}
-            {hasCanvasUrl && courses.length === 0 && !loadError && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5">
-                <p className="text-sm text-[--color-text-secondary]">No courses found in your Canvas feed.</p>
-              </div>
-            )}
-
-            {/* School calendars */}
-            {hasSchoolAccount && (
-              <section className="space-y-3">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-1">
-                  School Calendars
-                </h2>
-                <SchoolCalendarList
-                  calendars={schoolCalendars}
-                  onToggle={handleToggleSchoolCalendar}
-                />
-              </section>
-            )}
+              {/* School calendars — below course list */}
+              {hasSchoolAccount && (
+                <section className="mt-4 space-y-3">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-3">
+                    School Calendars
+                  </h2>
+                  <SchoolCalendarList
+                    calendars={schoolCalendars}
+                    onToggle={handleToggleSchoolCalendar}
+                  />
+                </section>
+              )}
+            </main>
           </div>
         )}
       </div>
 
-      {/* Course drawer — rendered outside tab content, at component root, via portal */}
+      {/* Course drawer — conditionally rendered (unmount on close for defaultExpanded to reset) */}
       {openCourseDrawer && (() => {
         const course = courses.find((c) => c.courseName === openCourseDrawer);
         if (!course) return null;

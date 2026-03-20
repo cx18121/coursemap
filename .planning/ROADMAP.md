@@ -93,6 +93,12 @@ Plans:
 **Goal:** Replace the long-scrolling dashboard with a two-tab layout (Overview / Courses) featuring stat cards, a course card grid, and a slide-in drawer for course details
 **Requirements**: UX-01, UX-02, UX-03, UX-04, UX-05
 **Depends on:** Phase 7
+
+### Phase 9: Dashboard layout overhaul — horizontal single-page layout
+
+**Goal:** Replace the two-tab layout with a compact single-page horizontal dashboard: stat cards on the left rail, course list on the right, no tabs, auto-open course accordion in the drawer, minimal whitespace, information-dense
+**Requirements**: UX-01, UX-02, UX-03, UX-04, UX-05
+**Depends on:** Phase 8
 **Success Criteria** (what must be TRUE):
   1. Dashboard displays two tabs (Overview and Courses) with Overview as default
   2. Overview tab shows countdown deadlines as primary hero, three stat cards (Deadlines/Synced/Conflicts), and inline sync button

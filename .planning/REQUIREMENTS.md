@@ -71,7 +71,7 @@ Requirements for the Automation & Visibility milestone. Each maps to roadmap pha
 - [x] **UX-02**: Overview tab shows countdown deadlines as the primary hero section with three summary stat cards (Deadlines, Synced, Conflicts) that expand detail panels one at a time
 - [x] **UX-03**: Courses tab displays courses as a compact card grid (2-col mobile, 3-col desktop) replacing the vertical accordion list
 - [x] **UX-04**: Clicking a course card opens a slide-in drawer from the right with full course details (event list, type checkboxes, color picker)
-- [ ] **UX-05**: Sync button and summary render inline in the Overview tab instead of fixed at the bottom of the viewport
+- [x] **UX-05**: Sync button and summary render inline in the Overview tab instead of fixed at the bottom of the viewport
 
 ## v2 Requirements
 

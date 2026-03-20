@@ -105,7 +105,7 @@ Plans:
   3. Course accordion auto-opens when a course is selected — no extra click required
   4. Course detail panel has no dark backdrop overlay; it does not obstruct the rest of the page
   5. All existing functionality (toggles, sync, color picker, event exclusions, stat card expand panels) works unchanged
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md — CourseRow component + CourseAccordion defaultExpanded prop + test stubs

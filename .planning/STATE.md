@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Automation & Visibility
 status: planning
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-20T21:03:22.638Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-20T21:14:44Z"
 progress:
   total_phases: 9
   completed_phases: 7
@@ -54,8 +54,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 09 (dashboard-layout-overhaul-horizontal-single-page) — EXECUTING
-Plan: 1 of 2
+Phase: 09 (dashboard-layout-overhaul-horizontal-single-page) — COMPLETE
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -175,6 +175,9 @@ Plan: 1 of 2
 - [Phase 08]: SyncSummary inline prop is interface-only; fixed wrapper lives in SyncDashboard, not inside SyncSummary component
 - [Phase 09]: CourseRow uses h-11 (44px) for compact row height; defaultExpanded ?? false is backward-compatible with existing CourseAccordion call sites
 - [Phase 09]: min-w-0 required on flex-1 span for Tailwind truncate to work inside flex container
+- [Phase 09-02]: Tab strip removed entirely — Overview/Courses merged into single horizontal two-column page; no activeTab state needed
+- [Phase 09-02]: CourseDrawer backdrop (bg-black/40) removed — drawer portal renders without dimming overlay; page remains fully visible while drawer is open
+- [Phase 09-02]: max-w-4xl (896px) replaces max-w-2xl for two-column horizontal layout; items-start prevents right column stretching
 
 ### Roadmap Evolution
 
@@ -196,6 +199,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:03:22.446Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-03-20T21:14:44Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None

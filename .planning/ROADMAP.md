@@ -100,16 +100,16 @@ Plans:
 **Requirements**: UX-01, UX-02, UX-03, UX-04, UX-05
 **Depends on:** Phase 8
 **Success Criteria** (what must be TRUE):
-  1. Dashboard displays two tabs (Overview and Courses) with Overview as default
-  2. Overview tab shows countdown deadlines as primary hero, three stat cards (Deadlines/Synced/Conflicts), and inline sync button
-  3. Stat cards expand detail panels one at a time below the card row
-  4. Courses tab shows a compact card grid (2-col mobile, 3-col desktop) with slide-in drawer for course details
-  5. All existing functionality (toggles, sync, color picker, event exclusions) works unchanged
-**Plans:** 1/2 plans executed
+  1. Dashboard is a single page with no tabs — stat cards and course list are both visible without switching views
+  2. Layout uses horizontal space: stat cards column + course list column side by side on desktop
+  3. Course accordion auto-opens when a course is selected — no extra click required
+  4. Course detail panel has no dark backdrop overlay; it does not obstruct the rest of the page
+  5. All existing functionality (toggles, sync, color picker, event exclusions, stat card expand panels) works unchanged
+**Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — New components (StatCard, CourseCard, CourseDrawer) + SyncButton/SyncSummary inline prop
-- [ ] 08-02-PLAN.md — SyncDashboard tabbed layout refactor + stat count fetching + visual verification
+- [ ] 09-01-PLAN.md — CourseRow component + CourseAccordion defaultExpanded prop + test stubs
+- [ ] 09-02-PLAN.md — CourseDrawer backdrop removal + SyncDashboard horizontal layout refactor + visual verification
 
 ---
 

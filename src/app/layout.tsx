@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Canvas to GCal",
+  title: "Coursemap",
   description:
     "Sync your Canvas assignments and school calendar to Google Calendar automatically.",
 };
@@ -39,7 +39,7 @@ export default async function RootLayout({
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[--color-accent]" />
               <span className="text-[--color-text-primary] font-semibold text-sm tracking-wide">
-                Canvas to GCal
+                Coursemap
               </span>
             </div>
             <AccountDropdown />

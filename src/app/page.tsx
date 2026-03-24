@@ -69,7 +69,7 @@ export default async function Home({
             </span>
           </div>
           <h1 className="text-3xl font-semibold text-[--color-text-primary] tracking-tight">
-            Canvas to GCal
+            Coursemap
           </h1>
           <p className="text-sm text-[--color-text-secondary] max-w-sm mx-auto leading-relaxed">
             Connect your accounts to sync Canvas assignments to Google Calendar.

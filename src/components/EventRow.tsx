@@ -12,19 +12,15 @@ interface EventRowProps {
 }
 
 function formatDate(isoDate: string): string {
+  if (!isoDate) return '';
   const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function truncate(text: string, maxLen: number): string {
-  if (!text) return '';
-  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
 export default function EventRow({
   uid,
   cleanedTitle,
-  description,
   start,
   excluded,
   onToggle,
@@ -32,24 +28,24 @@ export default function EventRow({
   const included = !excluded;
 
   return (
-    <div className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-white/5 transition-colors ml-4">
+    <label className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-[--color-surface-raised] active:bg-[--color-border]/40 transition-colors ml-4 cursor-pointer">
       <input
         type="checkbox"
         checked={included}
         onChange={() => onToggle(uid, included)}
-        className="mt-1 w-4 h-4 rounded accent-indigo-500 flex-shrink-0 cursor-pointer"
+        className="mt-0.5 w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
         aria-label={`Include "${cleanedTitle}"`}
       />
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm font-medium leading-snug ${
-            included ? 'text-[--color-text-primary]' : 'text-[--color-text-secondary] line-through'
+          className={`text-sm leading-snug ${
+            included ? 'text-[--color-text-primary]' : 'text-[--color-text-tertiary] line-through'
           }`}
         >
           {cleanedTitle}
         </p>
-        <p className="text-xs text-[--color-text-secondary] mt-1">{formatDate(start)}</p>
+        <p className="text-xs text-[--color-text-tertiary] mt-0.5">{formatDate(start)}</p>
       </div>
-    </div>
+    </label>
   );
 }

@@ -104,6 +104,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   const [conflictCount, setConflictCount] = useState<number | string>('--');
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---- Initial data load -------------------------------------------------
 
@@ -134,7 +135,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           );
         }
 
-        // Fetch latest courseTypeSettings from API (may have been updated by last sync)
         promises.push(
           fetch('/api/user-settings')
             .then((r) => r.json())
@@ -143,7 +143,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
             })
         );
 
-        // Fetch synced event count for stat card (eager — just the count)
         promises.push(
           fetch('/api/sync/preview')
             .then((r) => r.json())
@@ -153,10 +152,9 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
                 setDedupeCount(total);
               }
             })
-            .catch(() => { /* Non-fatal: stat card shows -- */ })
+            .catch(() => { /* Non-fatal */ })
         );
 
-        // Fetch conflict count for stat card (eager — just the count)
         promises.push(
           fetch('/api/sync/conflicts')
             .then((r) => r.json())
@@ -165,12 +163,12 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
                 setConflictCount(data.conflicts.length);
               }
             })
-            .catch(() => { /* Non-fatal: stat card shows -- */ })
+            .catch(() => { /* Non-fatal */ })
         );
 
         await Promise.all(promises);
       } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load data');
+        setLoadError(err instanceof Error ? err.message : 'Couldn\'t load your courses. Refresh the page to try again.');
       } finally {
         setIsLoading(false);
       }
@@ -187,9 +185,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
         if (data.lastSyncStatus) setLastSyncStatus(data.lastSyncStatus);
       })
-      .catch(() => {
-        // Non-fatal: timestamp will appear after first sync
-      });
+      .catch(() => {});
   }, []);
 
   // ---- Cleanup polling on unmount ----------------------------------------
@@ -197,6 +193,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
     };
   }, []);
 
@@ -226,7 +223,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   }, []);
 
   const handleToggleEvent = useCallback(async (uid: string, wasIncluded: boolean) => {
-    // wasIncluded is the old state; we're toggling, so new excluded = wasIncluded
     const newExcluded = wasIncluded;
     setCourses((prev) =>
       prev.map((c) => ({
@@ -263,7 +259,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
   }, []);
 
   const handleToggleEventType = useCallback(async (courseName: string, eventType: string, enabled: boolean) => {
-    // Optimistic update — add row if it doesn't exist in DB state yet
     const previousSettings = courseTypeSettings;
     setCourseTypeSettings((prev) => {
       const exists = prev.some((s) => s.courseName === courseName && s.eventType === eventType);
@@ -272,7 +267,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           s.courseName === courseName && s.eventType === eventType ? { ...s, enabled } : s
         );
       }
-      // New row: use type-specific default color for the optimistic entry
       const defaultColorId = DEFAULT_TYPE_COLORS[eventType] ?? '1';
       return [...prev, { courseName, eventType, enabled, colorId: defaultColorId }];
     });
@@ -283,13 +277,11 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseName, eventType, enabled }),
     }).catch(() => {
-      // Silent revert on failure
       setCourseTypeSettings(previousSettings);
     });
   }, [courseTypeSettings]);
 
   const handleChangeEventTypeColor = useCallback(async (courseName: string, eventType: string, colorId: string) => {
-    // Optimistic update
     const previousSettings = courseTypeSettings;
     setCourseTypeSettings((prev) => {
       const exists = prev.some((s) => s.courseName === courseName && s.eventType === eventType);
@@ -307,7 +299,6 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseName, eventType, colorId }),
     }).catch(() => {
-      // Silent revert on failure
       setCourseTypeSettings(previousSettings);
     });
   }, [courseTypeSettings]);
@@ -348,7 +339,15 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
     const { jobId } = await res.json();
 
-    // Start polling
+    pollTimeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      setSyncStatus('error');
+      setSyncError('Sync is taking too long. Check your connection and try again.');
+    }, 5 * 60 * 1000);
+
     pollIntervalRef.current = setInterval(async () => {
       try {
         const statusRes = await fetch(`/api/sync/status?jobId=${jobId}`);
@@ -359,11 +358,11 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         if (statusData.status === 'complete') {
           clearInterval(pollIntervalRef.current!);
           pollIntervalRef.current = null;
+          if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
           setSyncStatus('complete');
           if (statusData.canvasSummary) setCanvasSummary(statusData.canvasSummary);
           if (statusData.mirrorSummary) setMirrorSummary(statusData.mirrorSummary);
 
-          // Re-fetch sync status from DB (manual sync now writes to syncLog too)
           fetch('/api/sync/last')
             .then((r) => r.json())
             .then((data) => {
@@ -372,20 +371,15 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
             })
             .catch(() => {});
 
-          // Refresh courseTypeSettings after sync — new types may have been discovered
           fetch('/api/user-settings')
             .then((r) => r.json())
             .then((data) => {
               if (data.courseTypeSettings) setCourseTypeSettings(data.courseTypeSettings);
             })
-            .catch(() => {
-              // Non-fatal: settings will refresh on next page load
-            });
+            .catch(() => {});
 
-          // Bump syncVersion to force ConflictPanel remount — clears cached conflict data
           setSyncVersion((v) => v + 1);
 
-          // Re-fetch stat card counts after sync completes
           fetch('/api/sync/preview').then((r) => r.json()).then((data) => {
             if (data.summary) {
               const total = (data.summary.created ?? 0) + (data.summary.updated ?? 0) + (data.summary.unchanged ?? 0);
@@ -398,6 +392,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         } else if (statusData.status === 'error') {
           clearInterval(pollIntervalRef.current!);
           pollIntervalRef.current = null;
+          if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
           setSyncStatus('error');
           setSyncError(statusData.error ?? 'Sync failed');
         }
@@ -411,18 +406,14 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
   // ---- Panel/drawer handlers ---------------------------------------------
 
-  function handleStatCardClick(panel: 'countdown' | 'dedupe' | 'conflicts') {
-    setExpandedPanel((prev) => (prev === panel ? null : panel));
-  }
+  const handleCountdownClick = useCallback(() => setExpandedPanel((p) => (p === 'countdown' ? null : 'countdown')), []);
+  const handleDedupeClick    = useCallback(() => setExpandedPanel((p) => (p === 'dedupe'    ? null : 'dedupe')),    []);
+  const handleConflictsClick = useCallback(() => setExpandedPanel((p) => (p === 'conflicts' ? null : 'conflicts')), []);
 
   // ---- Derived state -----------------------------------------------------
 
   const hasAnyCourseEnabled = courses.some((c) => c.enabled);
 
-  // Derive per-course type settings from the actual events in each course,
-  // merged with any saved DB preferences (courseTypeSettings).
-  // This means checkboxes appear immediately after courses load, with categories
-  // specific to each course based on its actual event titles.
   const derivedCourseTypeSettings = useMemo<CourseTypeSetting[]>(() => {
     const savedMap = new Map(
       courseTypeSettings.map((s) => [
@@ -484,23 +475,20 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
 
   return (
     <div className="min-h-screen">
-      {/* Background glow — unchanged */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/[0.04] rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[120px]" />
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 pt-8 pb-8">
+      <div className="max-w-4xl mx-auto px-4 pt-4 md:pt-8 pb-8">
         {/* Page header */}
-        <div className="space-y-1 mb-6">
-          <h1 className="text-2xl font-semibold text-[--color-text-primary] tracking-tight">
-            Welcome, {userName}
+        <div className="space-y-1.5 mb-8">
+          <h1 className="text-3xl font-semibold text-[--color-text-primary] tracking-tight break-words">
+            {(() => {
+              const h = new Date().getHours();
+              return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+            })()}, {userName}
           </h1>
           {lastSyncedAt !== null && (
-            <p className="text-xs text-[--color-text-secondary]">
+            <p className="text-xs text-[--color-text-tertiary]">
               Last synced {new Date(lastSyncedAt).toLocaleString()}
               {lastSyncStatus === 'error' && (
-                <span className="text-red-400 ml-1">(failed)</span>
+                <span className="text-red-600 ml-1">(failed)</span>
               )}
             </p>
           )}
@@ -509,24 +497,24 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         {/* Loading state */}
         {isLoading && hasCanvasUrl && (
           <div className="flex items-center gap-3 py-8 justify-center">
-            <div className="w-5 h-5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-[--color-accent] border-t-transparent animate-spin" />
             <span className="text-sm text-[--color-text-secondary]">Loading your courses...</span>
           </div>
         )}
 
         {/* Load error */}
         {loadError && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-4">
-            <p className="text-sm text-red-400">{loadError}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-700">{loadError}</p>
           </div>
         )}
 
         {/* No Canvas URL message */}
         {!isLoading && !hasCanvasUrl && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5 mb-4">
-            <p className="text-sm text-[--color-text-primary] font-medium">Canvas feed not configured</p>
+          <div className="bg-white rounded-lg border border-[--color-border] p-5 mb-4">
+            <p className="text-sm text-[--color-text-primary] font-medium">Canvas feed not set up</p>
             <p className="text-xs text-[--color-text-secondary] mt-1">
-              Add your Canvas ICS URL in Settings to start syncing assignments.
+              Add your Canvas feed URL in Settings to start syncing assignments.
             </p>
           </div>
         )}
@@ -536,35 +524,41 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 items-start">
 
             {/* ── LEFT RAIL: stat cards + expanded panel + sync ── */}
-            <aside className="flex flex-col gap-3">
-              {/* Stat cards — stacked vertically */}
+            <aside className="flex flex-col gap-4 order-2 md:order-1">
+              {/* Stat cards — horizontal 3-up on mobile, stacked on desktop */}
               {hasCanvasUrl && courses.length > 0 && (
-                <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-3 gap-2 md:flex md:flex-col md:gap-2">
                   <StatCard
                     label="Deadlines"
                     value={upcomingDeadlineCount}
                     active={expandedPanel === 'countdown'}
-                    onClick={() => handleStatCardClick('countdown')}
+                    onClick={handleCountdownClick}
                   />
                   <StatCard
                     label="Synced"
                     value={dedupeCount}
                     active={expandedPanel === 'dedupe'}
-                    onClick={() => handleStatCardClick('dedupe')}
+                    onClick={handleDedupeClick}
                   />
                   <StatCard
                     label="Conflicts"
                     value={conflictCount}
                     active={expandedPanel === 'conflicts'}
-                    onClick={() => handleStatCardClick('conflicts')}
+                    onClick={handleConflictsClick}
                   />
                 </div>
               )}
 
               {/* Expanded detail panel — below stat card stack */}
-              {expandedPanel === 'countdown' && <CountdownPanel events={countdownEvents} />}
-              {expandedPanel === 'dedupe' && <DedupePanel />}
-              {expandedPanel === 'conflicts' && <ConflictPanel key={syncVersion} />}
+              {expandedPanel === 'countdown' && (
+                <div className="animate-fade-slide-up"><CountdownPanel events={countdownEvents} /></div>
+              )}
+              {expandedPanel === 'dedupe' && (
+                <div className="animate-fade-slide-up"><DedupePanel /></div>
+              )}
+              {expandedPanel === 'conflicts' && (
+                <div className="animate-fade-slide-up"><ConflictPanel key={syncVersion} /></div>
+              )}
 
               {/* Sync button + summary — always last in left rail */}
               <div className="flex flex-col gap-2">
@@ -588,38 +582,43 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
             </aside>
 
             {/* ── RIGHT COLUMN: course rows + school calendars ── */}
-            <main className="flex flex-col gap-1">
+            <main className="flex flex-col order-1 md:order-2">
               {/* Canvas courses — compact rows */}
               {hasCanvasUrl && courses.length > 0 && (
-                <section className="space-y-1">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-3 mb-2">
+                <section className="space-y-0.5">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-[--color-text-tertiary] px-3 mb-3">
                     Canvas Courses
                   </h2>
-                  {courses.map((course) => (
-                    <CourseRow
+                  {courses.map((course, i) => (
+                    <div
                       key={course.courseName}
-                      courseName={course.courseName}
-                      colorId={course.colorId}
-                      enabled={course.enabled}
-                      eventCount={course.events.length}
-                      onClick={() => setOpenCourseDrawer(course.courseName)}
-                      onToggle={handleToggleCourse}
-                    />
+                      className="stagger-item"
+                      style={{ animationDelay: `${i * 35}ms` }}
+                    >
+                      <CourseRow
+                        courseName={course.courseName}
+                        colorId={course.colorId}
+                        enabled={course.enabled}
+                        eventCount={course.events.length}
+                        onOpen={setOpenCourseDrawer}
+                        onToggle={handleToggleCourse}
+                      />
+                    </div>
                   ))}
                 </section>
               )}
 
               {/* No courses found */}
               {hasCanvasUrl && courses.length === 0 && !loadError && (
-                <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] p-5">
+                <div className="bg-white rounded-lg border border-[--color-border] p-5">
                   <p className="text-sm text-[--color-text-secondary]">No courses found in your Canvas feed.</p>
                 </div>
               )}
 
               {/* School calendars — below course list */}
               {hasSchoolAccount && (
-                <section className="mt-4 space-y-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] px-3">
+                <section className="mt-8 space-y-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-[--color-text-tertiary] px-3 mb-3">
                     School Calendars
                   </h2>
                   <SchoolCalendarList
@@ -633,7 +632,7 @@ export default function SyncDashboard({ userName, hasCanvasUrl, hasSchoolAccount
         )}
       </div>
 
-      {/* Course drawer — conditionally rendered (unmount on close for defaultExpanded to reset) */}
+      {/* Course drawer */}
       {openCourseDrawer && (() => {
         const course = courses.find((c) => c.courseName === openCourseDrawer);
         if (!course) return null;

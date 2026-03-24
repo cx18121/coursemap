@@ -3,40 +3,97 @@
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-surface: #18181b;
-  --color-surface-raised: #1e1e22;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-hover: rgba(255, 255, 255, 0.12);
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F7F7F5;
+  --color-border: #E5E4E0;
+  --color-border-hover: #D1D0CC;
   --color-accent: #f59e0b;
-  --color-accent-dim: rgba(245, 158, 11, 0.15);
-  --color-accent-hover: #fbbf24;
-  --color-text-primary: #fafaf9;
-  --color-text-secondary: rgba(250, 250, 249, 0.55);
-  --color-text-tertiary: rgba(250, 250, 249, 0.35);
+  --color-accent-dim: rgba(245, 158, 11, 0.08);
+  --color-accent-hover: #d97706;
+  --color-text-primary: #1A1A18;
+  --color-text-secondary: #6B6B68;
+  --color-text-tertiary: #9B9B98;
 }
 
 :root {
-  --background: #0c0a09;
-  --foreground: #fafaf9;
+  --background: #FAFAF9;
+  --foreground: #1A1A18;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
 }
 
-/* Subtle grain overlay */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 128px 128px;
+/* === Animations ========================================================== */
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes fade-slide-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+@keyframes value-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@keyframes dot-appear {
+  0%   { transform: scale(0); opacity: 0; }
+  55%  { transform: scale(1.45); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 180ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-value-pop {
+  animation: value-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-dot-appear {
+  animation: dot-appear 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered list item entrance */
+.stagger-item {
+  opacity: 0;
+  animation: fade-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-right,
+  .animate-slide-out-right,
+  .animate-fade-slide-up,
+  .animate-value-pop,
+  .animate-dot-appear,
+  .stagger-item {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* Focus ring utility */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ConflictEvent {
   uid: string;
@@ -14,99 +14,78 @@ interface ConflictData {
   conflicts: ConflictEvent[];
 }
 
+function safeDate(iso: string, opts: Intl.DateTimeFormatOptions): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString(undefined, opts);
+}
+
 export default function ConflictPanel() {
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ConflictData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleToggle() {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
-    setExpanded(true);
-    if (data !== null) return; // already loaded, just re-expand
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/sync/conflicts');
-      if (!res.ok) throw new Error('Failed to load conflicts');
-      setData(await res.json());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading conflicts');
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    fetch('/api/sync/conflicts')
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to load conflicts');
+        return r.json();
+      })
+      .then((d) => setData(d))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Error loading conflicts'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg border border-[--color-border] p-4 flex items-center gap-2">
+        <div className="w-4 h-4 rounded-full border-2 border-[--color-accent] border-t-transparent animate-spin" />
+        <span className="text-xs text-[--color-text-secondary]">Checking for conflicts...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg border border-[--color-border] p-4">
+        <p className="text-xs text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  if (data.conflictCount === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-[--color-border] p-4 flex items-center gap-2.5">
+        <svg
+          className="w-4 h-4 text-emerald-500 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 16 16"
+          stroke="currentColor"
+          strokeWidth={1.75}
+        >
+          <circle cx="8" cy="8" r="6.5" strokeOpacity={0.35} />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 8l1.75 1.75L10.5 6.25" />
+        </svg>
+        <p className="text-sm text-[--color-text-secondary]">No conflicts</p>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white/[0.04] backdrop-blur-lg rounded-2xl border border-[--color-border] overflow-hidden">
-      {/* Header — always visible */}
-      <button
-        onClick={handleToggle}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[--color-text-primary]">
-            GCal Conflicts
-          </span>
-          {data !== null && !loading && data.conflictCount > 0 && (
-            <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
-              {data.conflictCount}
-            </span>
-          )}
-          {data !== null && !loading && data.conflictCount === 0 && (
-            <span className="text-xs text-[--color-text-secondary]">
-              (none)
-            </span>
-          )}
-        </div>
-        <svg
-          className={`w-4 h-4 text-[--color-text-secondary] transition-transform ${expanded ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Body — only when expanded */}
-      {expanded && (
-        <div className="px-5 pb-4 border-t border-[--color-border]">
-          {loading && (
-            <div className="flex items-center gap-2 py-3">
-              <div className="w-4 h-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
-              <span className="text-xs text-[--color-text-secondary]">Checking for conflicts...</span>
+    <div className="bg-white rounded-lg border border-[--color-border] overflow-hidden">
+      <ul className="divide-y divide-[--color-border]">
+        {data.conflicts.map((c) => (
+          <li key={c.uid} className="px-4 py-3 flex flex-col gap-1 min-w-0">
+            <span className="text-sm font-medium text-[--color-text-primary] truncate">{c.summary}</span>
+            <div className="flex gap-3 text-xs text-[--color-text-secondary]">
+              <span>Due: {safeDate(c.startAt, { month: 'short', day: 'numeric' })}</span>
+              <span>GCal edited: {safeDate(c.gcalUpdatedAt, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
             </div>
-          )}
-
-          {error && (
-            <p className="text-xs text-red-400 py-3">{error}</p>
-          )}
-
-          {data !== null && !loading && data.conflictCount === 0 && (
-            <p className="text-xs text-[--color-text-secondary] py-3">
-              No conflicts detected. All synced events match their Canvas source.
-            </p>
-          )}
-
-          {data !== null && !loading && data.conflicts.length > 0 && (
-            <ul className="divide-y divide-[--color-border]">
-              {data.conflicts.map((c) => (
-                <li key={c.uid} className="py-3 flex flex-col gap-1">
-                  <span className="text-sm font-medium text-[--color-text-primary]">{c.summary}</span>
-                  <div className="flex gap-3 text-xs text-[--color-text-secondary]">
-                    <span>Due: {new Date(c.startAt).toLocaleDateString()}</span>
-                    <span>GCal edited: {new Date(c.gcalUpdatedAt).toLocaleString()}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

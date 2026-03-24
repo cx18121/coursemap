@@ -60,17 +60,11 @@ export default async function Home({
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      {/* Subtle background glow */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-amber-500/[0.04] rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-orange-500/[0.03] rounded-full blur-[120px]" />
-      </div>
-
       <main className="w-full max-w-md flex flex-col items-center gap-10">
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[--color-accent]" />
-            <span className="text-[--color-text-tertiary] text-xs uppercase tracking-[0.2em] font-medium">
+            <span className="text-[--color-text-tertiary] text-xs uppercase tracking-widest font-medium">
               Setup
             </span>
           </div>

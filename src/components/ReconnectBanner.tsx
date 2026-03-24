@@ -17,12 +17,12 @@ export default function ReconnectBanner({ account, onDismiss }: ReconnectBannerP
     account === 'personal' ? '/login/google' : '/link/school-google';
 
   return (
-    <div className="w-full px-6 py-2.5 bg-amber-500/[0.06] border-b border-amber-500/10 flex items-center justify-between gap-4">
-      <p className="text-amber-300/80 text-xs">{message}</p>
+    <div className="w-full px-4 md:px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+      <p className="text-amber-800 text-xs">{message}</p>
       <div className="flex items-center gap-2 flex-shrink-0">
         <a
           href={reconnectHref}
-          className="text-xs px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-md transition-colors font-medium border border-amber-500/20"
+          className="text-xs px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg transition-colors font-medium border border-amber-300"
         >
           Reconnect
         </a>
@@ -30,7 +30,7 @@ export default function ReconnectBanner({ account, onDismiss }: ReconnectBannerP
           <button
             onClick={onDismiss}
             aria-label="Dismiss"
-            className="text-amber-300/40 hover:text-amber-300/70 transition-colors"
+            className="text-amber-400 hover:text-amber-600 transition-colors"
           >
             <svg
               className="w-3.5 h-3.5"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import CourseAccordion from './CourseAccordion';
 import ColorPicker, { GOOGLE_CALENDAR_COLORS } from './ColorPicker';
@@ -45,20 +45,37 @@ export default function CourseDrawer({
   onChangeEventTypeColor,
 }: CourseDrawerProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   const colorDotRef = useRef<HTMLButtonElement>(null);
   const colorHex = GOOGLE_CALENDAR_COLORS[colorId]?.hex ?? '#3F51B5';
   const includedCount = events.filter((e) => !e.excluded).length;
 
+  const handleClose = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => onClose(), 175);
+  }, [onClose]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [handleClose]);
 
   return createPortal(
-    <div className="fixed top-0 right-0 h-full w-full max-w-md z-50 bg-[--color-surface] border-l border-[--color-border] shadow-2xl flex flex-col">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Course settings: ${courseName}`}
+      className={`fixed top-0 right-0 h-full w-full max-w-md z-50 bg-white border-l border-[--color-border] shadow-xl shadow-black/6 flex flex-col ${isExiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}
+    >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-[--color-border] flex-shrink-0">
         {/* Enable/disable checkbox */}
@@ -66,7 +83,7 @@ export default function CourseDrawer({
           type="checkbox"
           checked={enabled}
           onChange={() => onToggleCourse(courseName, !enabled)}
-          className="w-4 h-4 rounded accent-indigo-500 flex-shrink-0 cursor-pointer"
+          className="w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
           aria-label={`Enable course "${courseName}"`}
         />
 
@@ -75,7 +92,7 @@ export default function CourseDrawer({
           <button
             ref={colorDotRef}
             onClick={() => setShowColorPicker((v) => !v)}
-            className="w-5 h-5 rounded-full border-2 border-white/20 hover:border-white/50 transition-colors focus:outline-none"
+            className="w-5 h-5 rounded-full border-2 border-white/60 hover:border-white transition-colors focus:outline-none shadow-sm"
             style={{ backgroundColor: colorHex }}
             aria-label={`Change color for "${courseName}"`}
             title="Change color"
@@ -98,9 +115,9 @@ export default function CourseDrawer({
 
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Close drawer"
-          className="p-2 -mr-1 rounded-lg text-[--color-text-secondary] hover:text-[--color-text-primary] hover:bg-white/10 transition-colors flex-shrink-0"
+          className="p-2.5 -mr-1 rounded-lg text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-[--color-surface-raised] transition-colors flex-shrink-0"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

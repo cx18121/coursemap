@@ -28,8 +28,6 @@ export default function ColorPicker({ anchorRef, currentColorId, onSelect, onClo
   const popoverRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Calculate position from anchor element using fixed coords so the popover
-  // escapes all stacking contexts (backdrop-blur, etc.)
   useEffect(() => {
     if (anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect();
@@ -57,9 +55,9 @@ export default function ColorPicker({ anchorRef, currentColorId, onSelect, onClo
     <div
       ref={popoverRef}
       style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-      className="bg-[--color-surface] border border-[--color-border] rounded-xl shadow-xl p-2 w-44"
+      className="bg-white border border-[--color-border] rounded-lg shadow-lg shadow-black/8 p-2 w-44"
     >
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-2 gap-0.5">
         {Object.entries(GOOGLE_CALENDAR_COLORS).map(([id, { name, hex }]) => (
           <button
             key={id}
@@ -67,8 +65,8 @@ export default function ColorPicker({ anchorRef, currentColorId, onSelect, onClo
               onSelect(id);
               onClose();
             }}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-[--color-text-primary] hover:bg-white/10 transition-colors ${
-              currentColorId === id ? 'bg-white/15 font-medium' : ''
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-[--color-text-primary] hover:bg-[--color-surface-raised] transition-colors ${
+              currentColorId === id ? 'bg-[--color-surface-raised] font-medium' : ''
             }`}
           >
             <span

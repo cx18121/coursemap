@@ -59,7 +59,7 @@ export default function AccountDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-3 py-1.5 text-[--color-text-secondary] hover:text-[--color-text-primary] rounded-lg transition-colors text-sm border border-transparent hover:border-[--color-border-hover] hover:bg-white/[0.03]"
+        className="flex items-center gap-2 px-3 py-2 md:py-1.5 text-[--color-text-secondary] hover:text-[--color-text-primary] rounded-lg transition-colors text-sm border border-transparent hover:border-[--color-border] hover:bg-[--color-surface-raised]"
       >
         <span>{truncatedName}</span>
         <svg
@@ -74,7 +74,7 @@ export default function AccountDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-60 bg-[--color-surface-raised] border border-[--color-border-hover] rounded-lg shadow-xl shadow-black/40 py-1 z-[60]">
+        <div className="absolute right-0 mt-2 w-60 bg-white border border-[--color-border] rounded-lg shadow-lg shadow-black/6 py-1 z-[60]">
           {accounts.map((account) => (
             <div
               key={account.role}
@@ -87,7 +87,7 @@ export default function AccountDropdown() {
                 className={`ml-2 flex-shrink-0 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded ${
                   account.role === 'personal'
                     ? 'bg-[--color-accent-dim] text-[--color-accent]'
-                    : 'bg-emerald-500/10 text-emerald-400'
+                    : 'bg-[--color-surface-raised] text-[--color-text-secondary] border border-[--color-border]'
                 }`}
               >
                 {account.role === 'personal' ? 'Personal' : 'School'}
@@ -100,7 +100,7 @@ export default function AccountDropdown() {
               <div className="my-1 border-t border-[--color-border]" />
               <a
                 href="/link/school-google"
-                className="block px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-white/[0.03] text-xs transition-colors"
+                className="block px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-[--color-surface-raised] text-xs transition-colors"
                 onClick={() => setOpen(false)}
               >
                 + Link school account
@@ -112,7 +112,7 @@ export default function AccountDropdown() {
 
           <button
             onClick={handleSignOut}
-            className="w-full text-left px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-white/[0.03] text-xs transition-colors"
+            className="w-full text-left px-3 py-2 text-[--color-text-tertiary] hover:text-[--color-text-primary] hover:bg-[--color-surface-raised] text-xs transition-colors"
           >
             Sign out
           </button>

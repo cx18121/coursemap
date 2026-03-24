@@ -71,17 +71,17 @@ export default function CourseAccordion({
   }
 
   return (
-    <div className={hideHeader ? '' : 'bg-white/10 backdrop-blur-lg rounded-2xl border border-[--color-border] overflow-visible'}>
+    <div className={hideHeader ? '' : 'bg-white rounded-lg border border-[--color-border] overflow-visible'}>
       {/* Header row — hidden when rendered inside CourseDrawer */}
       {!hideHeader && (
-        <div className="flex items-center gap-3 p-4 cursor-pointer select-none" onClick={() => setExpanded((v) => !v)}>
+        <div className="flex items-center gap-3 p-4 cursor-pointer select-none hover:bg-[--color-surface-raised] transition-colors rounded-lg" onClick={() => setExpanded((v) => !v)}>
           {/* Checkbox */}
           <input
             type="checkbox"
             checked={enabled}
             onChange={handleCourseCheckbox}
             onClick={(e) => e.stopPropagation()}
-            className="w-4 h-4 rounded accent-indigo-500 flex-shrink-0 cursor-pointer"
+            className="w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
             aria-label={`Enable course "${courseName}"`}
           />
 
@@ -90,7 +90,7 @@ export default function CourseAccordion({
             <button
               ref={colorDotRef}
               onClick={handleColorClick}
-              className="w-5 h-5 rounded-full border-2 border-white/20 hover:border-white/50 transition-colors focus:outline-none"
+              className="w-5 h-5 rounded-full border-2 border-white/60 hover:border-white transition-colors focus:outline-none shadow-sm"
               style={{ backgroundColor: colorHex }}
               aria-label={`Change color for "${courseName}"`}
               title="Change color"
@@ -108,20 +108,20 @@ export default function CourseAccordion({
           {/* Course name */}
           <span
             className={`flex-1 text-sm font-medium truncate ${
-              enabled ? 'text-[--color-text-primary]' : 'text-[--color-text-secondary]'
+              enabled ? 'text-[--color-text-primary]' : 'text-[--color-text-tertiary]'
             }`}
           >
             {courseName}
           </span>
 
           {/* Event count badge */}
-          <span className="text-xs text-[--color-text-secondary] bg-white/10 rounded-full px-2 py-0.5 flex-shrink-0">
+          <span className="text-xs text-[--color-text-tertiary] bg-[--color-surface-raised] border border-[--color-border] rounded-full px-2 py-0.5 flex-shrink-0">
             {includedCount}/{events.length}
           </span>
 
           {/* Expand chevron */}
           <svg
-            className={`w-4 h-4 text-[--color-text-secondary] flex-shrink-0 transition-transform duration-200 ${
+            className={`w-4 h-4 text-[--color-text-tertiary] flex-shrink-0 transition-transform duration-200 ${
               expanded ? 'rotate-180' : ''
             }`}
             fill="none"
@@ -134,16 +134,16 @@ export default function CourseAccordion({
         </div>
       )}
 
-      {/* Expandable section */}
+      {/* Expandable section — grid-template-rows animates correctly without height hacks */}
       <div
-        className={`overflow-hidden transition-all duration-200 ${
-          expanded || hideHeader ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
+        className="grid [transition:grid-template-rows_220ms_cubic-bezier(0.22,1,0.36,1)]"
+        style={{ gridTemplateRows: (expanded || hideHeader) ? '1fr' : '0fr' }}
       >
+      <div className="overflow-hidden">
         {/* Event type filters */}
         {courseTypeSettings.length > 0 && (
           <div className={`px-4 pt-3 pb-2 space-y-1 ${hideHeader ? '' : 'border-t border-[--color-border]'}`}>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[--color-text-secondary] mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[--color-text-tertiary] mb-2">
               Event Types
             </p>
             {courseTypeSettings.map(({ eventType, enabled: typeEnabled, colorId: typeColorId }) => {
@@ -157,7 +157,7 @@ export default function CourseAccordion({
                     type="button"
                     aria-label={`Change color for ${eventType}`}
                     onClick={() => setOpenTypePickerKey(openTypePickerKey === key ? null : key)}
-                    className="w-4 h-4 rounded-full flex-shrink-0 border border-white/20 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-white/40"
+                    className="w-4 h-4 rounded-full flex-shrink-0 border border-black/10 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-[--color-accent]/30 shadow-sm"
                     style={{ backgroundColor: typeColorHex }}
                   />
                   {openTypePickerKey === key && (
@@ -176,10 +176,10 @@ export default function CourseAccordion({
                       type="checkbox"
                       checked={typeEnabled}
                       onChange={(e) => onToggleEventType(courseName, eventType, e.target.checked)}
-                      className="w-4 h-4 rounded accent-indigo-500 flex-shrink-0 cursor-pointer"
+                      className="w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
                       aria-label={`Sync ${eventType}`}
                     />
-                    <span className="text-sm text-[--color-text-primary]">{eventType}</span>
+                    <span className="text-sm text-[--color-text-primary] truncate">{eventType}</span>
                   </label>
                 </div>
               );
@@ -211,6 +211,7 @@ export default function CourseAccordion({
             })}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

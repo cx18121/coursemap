@@ -29,7 +29,7 @@ export default function SyncButton({ onSync, syncStatus, progress, syncError, di
     <>
       {/* Error message */}
       {isError && syncError && (
-        <p className="text-sm text-red-400 mb-2 text-center">{syncError}</p>
+        <p className="text-sm text-red-600 mb-2 text-center">{syncError}</p>
       )}
 
       {/* Sync button or progress bar */}
@@ -37,13 +37,13 @@ export default function SyncButton({ onSync, syncStatus, progress, syncError, di
         <div className="space-y-2">
           <div className="flex justify-between text-xs text-[--color-text-secondary]">
             <span>Syncing…</span>
-            <span>
-              {totalProcessed}/{totalEvents} events
+            <span className="tabular-nums">
+              {totalEvents > 0 ? `${totalProcessed}/${totalEvents} events` : 'Starting…'}
             </span>
           </div>
-          <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-[--color-border] rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+              className="h-full bg-[--color-accent] rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -52,10 +52,10 @@ export default function SyncButton({ onSync, syncStatus, progress, syncError, di
         <button
           onClick={onSync}
           disabled={disabled}
-          className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+          className={`w-full py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
             disabled
-              ? 'bg-white/10 text-[--color-text-secondary] cursor-not-allowed'
-              : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98]'
+              ? 'bg-[--color-surface-raised] border border-[--color-border] text-[--color-text-tertiary] cursor-not-allowed'
+              : 'bg-[--color-accent] hover:bg-[--color-accent-hover] text-[--color-text-primary] shadow-sm active:scale-[0.98]'
           }`}
         >
           {isError ? 'Retry Sync' : 'Sync Now'}
@@ -65,15 +65,11 @@ export default function SyncButton({ onSync, syncStatus, progress, syncError, di
   );
 
   if (inline) {
-    return (
-      <div className="rounded-xl overflow-hidden border border-[--color-border] bg-white/5 p-4">
-        {content}
-      </div>
-    );
+    return <div>{content}</div>;
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 bg-[--color-surface]/80 backdrop-blur-xl border-t border-[--color-border]">
+    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 bg-white border-t border-[--color-border]">
       <div className="max-w-2xl mx-auto">
         {content}
       </div>

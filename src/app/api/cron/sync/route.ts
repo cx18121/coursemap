@@ -19,17 +19,28 @@ export async function GET(request: NextRequest) {
     .from(users)
     .where(isNotNull(users.canvasIcsUrl));
 
+  const CONCURRENCY = 5;
   const results: { userId: number; status: string; error?: string }[] = [];
 
-  for (const user of allUsers) {
-    try {
-      await runSyncForUser(user.id, user.canvasIcsUrl!);
-      await upsertSyncLog(user.id, 'success');
-      results.push({ userId: user.id, status: 'success' });
-    } catch (err) {
-      const errorMsg = classifyError(err);
-      await upsertSyncLog(user.id, 'error', errorMsg);
-      results.push({ userId: user.id, status: 'error', error: errorMsg });
+  for (let i = 0; i < allUsers.length; i += CONCURRENCY) {
+    const batch = allUsers.slice(i, i + CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map(async (user) => {
+        await runSyncForUser(user.id, user.canvasIcsUrl!);
+        await upsertSyncLog(user.id, 'success');
+        return { userId: user.id, status: 'success' as const };
+      })
+    );
+
+    for (let j = 0; j < settled.length; j++) {
+      const result = settled[j];
+      if (result.status === 'fulfilled') {
+        results.push(result.value);
+      } else {
+        const errorMsg = classifyError(result.reason);
+        await upsertSyncLog(batch[j].id, 'error', errorMsg);
+        results.push({ userId: batch[j].id, status: 'error', error: errorMsg });
+      }
     }
   }
 

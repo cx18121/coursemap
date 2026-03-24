@@ -128,6 +128,41 @@ describe('GET /api/cron/sync', () => {
     expect(mockUpsertSyncLog).toHaveBeenCalledWith(1, 'error', 'token expired');
   });
 
+  test('runs up to 5 users concurrently — users in the same batch overlap in time', async () => {
+    const BATCH_SIZE = 5;
+    const USER_COUNT = 7; // spans two batches: [0-4] and [5-6]
+    mockWhere.mockResolvedValue(
+      Array.from({ length: USER_COUNT }, (_, i) => ({
+        id: i + 1,
+        canvasIcsUrl: `https://canvas.example.com/${i + 1}.ics`,
+      }))
+    );
+
+    let maxConcurrent = 0;
+    let current = 0;
+    mockRunSyncForUser.mockImplementation(() => {
+      current++;
+      maxConcurrent = Math.max(maxConcurrent, current);
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          current--;
+          resolve({
+            canvasSummary: { inserted: 0, updated: 0, skipped: 0, failed: 0, errors: [] },
+            mirrorSummary: { inserted: 0, updated: 0, skipped: 0, failed: 0, errors: [] },
+          });
+        }, 10)
+      );
+    });
+
+    const res = await GET(makeRequest('Bearer test-secret'));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.ran).toBe(USER_COUNT);
+    // First batch had 5 users — max concurrency must have reached 5
+    expect(maxConcurrent).toBe(BATCH_SIZE);
+  });
+
   test('returns JSON with ran count and per-user results', async () => {
     mockWhere.mockResolvedValue([
       { id: 1, canvasIcsUrl: 'https://canvas.example.com/1.ics' },

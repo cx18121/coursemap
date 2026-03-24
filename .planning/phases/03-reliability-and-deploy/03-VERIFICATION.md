@@ -5,7 +5,7 @@ status: human_needed
 score: 9/9 must-haves verified
 human_verification:
   - test: "Confirm app is live at public HTTPS URL and loads without errors"
-    expected: "https://canvas-to-gcal.vercel.app loads the login page successfully"
+    expected: "https://coursemap.vercel.app loads the login page successfully"
     why_human: "Cannot programmatically confirm Vercel deployment health from the dev environment; no vercel CLI available here"
   - test: "OAuth login (personal Google) works from production domain"
     expected: "Sign-in redirects through Google consent and returns to dashboard"
@@ -47,7 +47,7 @@ human_verification:
 | 5 | When Google Calendar quota is exceeded, user sees 'wait a few minutes' message | VERIFIED | `route.ts:34-36` classifyError matches `rate limit`, `quota`, `usagelimits`, `usage limits` → quota/wait message |
 | 6 | When Canvas ICS feed is unreachable, user sees 'check ICS URL' message | VERIFIED | `route.ts:38-40` classifyError matches `canvas`, `ics`, `fetch` → Canvas feed / ICS URL message |
 | 7 | Background sync job completes on Vercel (after() instead of void promise) | VERIFIED | `route.ts:1` imports `after` from `next/server`; `route.ts:158` uses `after(runSyncJob(...))` — confirmed in commit `9616c84` |
-| 8 | App is accessible at a public HTTPS URL | HUMAN NEEDED | `vercel.json` exists with `framework: nextjs`; SUMMARY confirms deployment at `https://canvas-to-gcal.vercel.app` — cannot programmatically verify live URL |
+| 8 | App is accessible at a public HTTPS URL | HUMAN NEEDED | `vercel.json` exists with `framework: nextjs`; SUMMARY confirms deployment at `https://coursemap.vercel.app` — cannot programmatically verify live URL |
 | 9 | OAuth and sync work end-to-end on production | HUMAN NEEDED | Environment variables, Google Cloud Console redirect URIs, and Production OAuth status confirmed by SUMMARY — cannot verify programmatically |
 
 **Score:** 7/7 automated truths verified; 2/2 production truths require human confirmation
@@ -119,7 +119,7 @@ Neither anti-pattern is a blocker. The underlying component code (`SyncDashboard
 
 ### 1. Production URL Availability
 
-**Test:** Navigate to `https://canvas-to-gcal.vercel.app` in a browser.
+**Test:** Navigate to `https://coursemap.vercel.app` in a browser.
 **Expected:** Login page loads — no build errors, no "deployment not found" Vercel 404.
 **Why human:** Cannot make HTTP requests to external URLs from this environment.
 

@@ -5,7 +5,7 @@
 ## Directory Layout
 
 ```
-canvas-to-gcal/
+coursemap/
 ├── src/                    # Application source code
 │   ├── app/               # Next.js app directory (routing, layouts, API)
 │   │   ├── api/           # API routes (server endpoints)

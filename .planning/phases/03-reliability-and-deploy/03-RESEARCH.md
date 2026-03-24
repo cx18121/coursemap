@@ -145,7 +145,7 @@ function classifyError(err: unknown): string {
 3. Vercel auto-detects Next.js — accept default build settings (`npm run build`, output `.next`)
 4. Add all 7 environment variables in Vercel → Settings → Environment Variables (Production only for secrets)
 5. Trigger first deploy
-6. Copy production URL (e.g., `https://canvas-to-gcal.vercel.app`)
+6. Copy production URL (e.g., `https://coursemap.vercel.app`)
 7. Add production URL callback to Google Cloud Console OAuth app:
    - `https://<your-domain>/login/google/callback`
    - `https://<your-domain>/link/school-google/callback`

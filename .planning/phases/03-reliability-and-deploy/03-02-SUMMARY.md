@@ -11,7 +11,7 @@ requires:
 
 provides:
   - vercel.json configuration for Next.js Vercel deployment
-  - Production deployment live at https://canvas-to-gcal.vercel.app
+  - Production deployment live at https://coursemap.vercel.app
 
 affects: [production, v1-milestone]
 
@@ -41,7 +41,7 @@ completed: 2026-03-15
 
 # Phase 3 Plan 02: Vercel Production Deployment Summary
 
-**Next.js app deployed to Vercel at https://canvas-to-gcal.vercel.app — OAuth login, school account link, and full sync flow verified in production**
+**Next.js app deployed to Vercel at https://coursemap.vercel.app — OAuth login, school account link, and full sync flow verified in production**
 
 ## Performance
 
@@ -102,7 +102,7 @@ completed: 2026-03-15
 
 All success criteria met:
 
-- App live at public HTTPS URL: https://canvas-to-gcal.vercel.app
+- App live at public HTTPS URL: https://coursemap.vercel.app
 - OAuth login (personal Google) works from production domain
 - School Google account linking works from production domain
 - Sync completes on production (`after()` lifecycle confirmed working)

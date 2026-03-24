@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed web app that automatically syncs Canvas LMS assignments and school Google Calendar events into a student's personal Google Calendar. Users connect two Google accounts (school + personal), paste their Canvas ICS feed URL, choose which courses and event types to include, and the app syncs events into organized per-course sub-calendars. Live at https://canvas-to-gcal.vercel.app.
+A deployed web app that automatically syncs Canvas LMS assignments and school Google Calendar events into a student's personal Google Calendar. Users connect two Google accounts (school + personal), paste their Canvas ICS feed URL, choose which courses and event types to include, and the app syncs events into organized per-course sub-calendars. Live at https://coursemap.vercel.app.
 
 ## Core Value
 

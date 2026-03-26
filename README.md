@@ -1,4 +1,4 @@
-# Coursemap
+# coursemap
 
 Sync your Canvas assignments and school calendar events into Google Calendar — automatically organized by course and event type.
 
@@ -18,10 +18,7 @@ Coursemap connects to your Canvas ICS feed and syncs all assignments, quizzes, e
 
 - **Next.js** (App Router) + **TypeScript**
 - **Neon PostgreSQL** + **Drizzle ORM**
-- **Google Calendar API** via OAuth 2.0 (personal + school accounts)
-- **Canvas ICS** feed via `node-ical`
 - **Anthropic Claude** (event classification + title cleanup)
-- Deployed on **Vercel** with cron
 
 ## Setup
 
